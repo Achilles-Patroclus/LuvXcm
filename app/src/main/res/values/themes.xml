@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      仅作为 Activity 的宿主主题：真正的配色/深浅色由 Compose 的 ScoreTraceTheme 负责。
+      使用平台 Material 主题，避免为此再引入 Material Components 依赖。
+    -->
+    <style name="Theme.ScoreTrace" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+</resources>

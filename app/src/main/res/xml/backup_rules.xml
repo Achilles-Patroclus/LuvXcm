@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- 设备相关的临时配置不参与自动备份 -->
+    <exclude domain="sharedpref" path="device.xml" />
+    <exclude domain="file" path="error" />
+</full-backup-content>

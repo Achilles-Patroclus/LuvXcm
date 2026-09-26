@@ -1,0 +1,22 @@
+<!-- API 24/25 无自适应图标时的回退图标 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M0,0 h108 v108 h-108 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,74 h10 v6 h-10 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,58 h8 v14 h-8 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,46 h8 v26 h-8 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,34 h8 v38 h-8 z" />
+</vector>

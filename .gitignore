@@ -1,0 +1,15 @@
+# 构建产物
+build/
+app/build/
+.gradle/
+.kotlin/
+/captures
+.externalNativeBuild
+.cxx
+
+# 本机/IDE 配置（不要提交）
+local.properties
+/local.properties
+/.idea
+*.iml
+.DS_Store
