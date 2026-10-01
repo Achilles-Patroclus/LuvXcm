@@ -22,7 +22,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.fenji.scorcetrace.R
+import com.fenji.scorcetrace.ui.music.MusicPlayerViewModel
 import com.fenji.scorcetrace.ui.screen.home.HomeScreen
 import com.fenji.scorcetrace.ui.screen.plan.PlanScreen
 import com.fenji.scorcetrace.ui.screen.score.ScoreScreen
@@ -41,8 +43,15 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Settings, R.string.tab_settings, Icons.Filled.Settings),
 )
 
+/**
+ * 顶层导航。音乐播放器的 ViewModel 在这一层获取——它的 ViewModelStoreOwner 是 Activity，
+ * 因此切底部 Tab 不会把它销毁，音乐也就不会被中断。
+ */
 @Composable
-fun AppNavHost(navController: NavHostController = rememberNavController()) {
+fun AppNavHost(
+    navController: NavHostController = rememberNavController(),
+    musicViewModel: MusicPlayerViewModel = hiltViewModel(),
+) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
@@ -68,6 +77,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
+                    musicViewModel = musicViewModel,
                     onOpenPlan = { navController.navigateToTab(Screen.Plan) },
                     onOpenScore = { navController.navigateToTab(Screen.Score) },
                 )

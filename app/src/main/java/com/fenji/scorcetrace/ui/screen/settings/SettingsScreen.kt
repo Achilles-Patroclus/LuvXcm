@@ -140,7 +140,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 SettingsRow(
                     icon = Icons.Rounded.DeleteOutline,
                     title = "清除全部数据",
-                    subtitle = "删除所有学习任务、错题与成绩记录",
+                    subtitle = "删除所有学习任务与成绩记录",
                     iconTint = MaterialTheme.colorScheme.error,
                     titleColor = MaterialTheme.colorScheme.error,
                     onClick = { showClearDialog = true },
@@ -231,7 +231,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             title = { Text("关于 ScoreTrace") },
             text = {
                 Text(
-                    text = "ScoreTrace 是一款高考备考应用，帮助你管理学习计划、错题与成绩。\n\n" +
+                    text = "ScoreTrace 是一款高考备考应用，帮助你管理学习计划与成绩。\n\n" +
                         "版本：v${state.versionName}",
                 )
             },
@@ -245,7 +245,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text("清除全部数据？") },
-            text = { Text("该操作不可撤销，将删除本机保存的所有任务、错题与成绩。") },
+            text = { Text("该操作不可撤销，将删除本机保存的所有任务与成绩。") },
             confirmButton = {
                 TextButton(
                     onClick = {

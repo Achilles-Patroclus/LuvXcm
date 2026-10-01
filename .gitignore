@@ -13,3 +13,6 @@ local.properties
 /.idea
 *.iml
 .DS_Store
+
+# AI 配置（技能/子代理/记忆）不随源码仓库提交
+.aicode/

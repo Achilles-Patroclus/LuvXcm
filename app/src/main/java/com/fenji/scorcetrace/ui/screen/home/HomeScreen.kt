@@ -38,7 +38,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,10 +83,10 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
+    musicViewModel: MusicPlayerViewModel,
     onOpenPlan: () -> Unit = {},
     onOpenScore: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
-    musicViewModel: MusicPlayerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val countdown by viewModel.countdownState.collectAsStateWithLifecycle()
@@ -98,15 +97,10 @@ fun HomeScreen(
     var showTargetEditor by rememberSaveable { mutableStateOf(false) }
     var showTargetDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
-    // 首次进入首页：等偏好设置读出后再决定是否自动播放
+    // 每次进入 App 只触发一次自动播放；切回首页不再 play()，所以不会打断正在播放的音乐
     LaunchedEffect(Unit) {
         val ready = viewModel.uiState.filter { !it.isLoading }.first()
-        if (ready.autoPlayMusic) musicViewModel.play()
-    }
-
-    // 离开首页（切 Tab）时暂停，避免后台继续播放
-    DisposableEffect(Unit) {
-        onDispose { musicViewModel.pause() }
+        musicViewModel.autoPlayOnce(enabled = ready.autoPlayMusic)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
