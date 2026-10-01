@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -84,6 +85,7 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     musicViewModel: MusicPlayerViewModel,
+    bottomContentPadding: Dp = Dimens.ContentBottom,
     onOpenPlan: () -> Unit = {},
     onOpenScore: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
@@ -116,7 +118,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Dimens.PageHorizontal)
-                .padding(bottom = Dimens.ContentBottom),
+                .padding(bottom = bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
         ) {
             CountdownCard(state = countdown)

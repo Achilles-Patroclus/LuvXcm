@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,7 +48,10 @@ import com.fenji.scorcetrace.util.DateUtils
 import java.util.Date
 
 @Composable
-fun PlanScreen(viewModel: PlanViewModel = hiltViewModel()) {
+fun PlanScreen(
+    viewModel: PlanViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = Dimens.ContentBottom,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val subjectNames = state.subjects.associate { it.id to it.name }
     val subjectColors = state.subjects.associate { it.id to Color(it.color) }
@@ -90,7 +94,7 @@ fun PlanScreen(viewModel: PlanViewModel = hiltViewModel()) {
                     start = Dimens.PageHorizontal,
                     end = Dimens.PageHorizontal,
                     top = 4.dp,
-                    bottom = Dimens.ContentBottom,
+                    bottom = bottomContentPadding,
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
             ) {

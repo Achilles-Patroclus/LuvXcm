@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,7 +67,10 @@ import com.fenji.scorcetrace.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = Dimens.ContentBottom,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val ipState by viewModel.ipState.collectAsStateWithLifecycle()
     val clipboardManager = LocalClipboardManager.current
@@ -84,7 +88,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Dimens.PageHorizontal)
-                .padding(top = 4.dp, bottom = Dimens.ContentBottom),
+                .padding(top = 4.dp, bottom = bottomContentPadding),
             // 组与组之间拉开到 24dp，形成清晰的分组节奏
             verticalArrangement = Arrangement.spacedBy(Dimens.SectionGap),
         ) {

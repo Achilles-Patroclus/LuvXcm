@@ -16,6 +16,7 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 gson = "2.11.0"
 coroutines = "1.9.0"
+haze = "1.1.0"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
 espressoCore = "3.6.1"
@@ -66,6 +67,9 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 
 # 协程
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# 液态玻璃（背景模糊）
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 
 # 测试
 junit = { module = "junit:junit", version.ref = "junit" }

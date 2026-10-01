@@ -109,6 +109,9 @@ dependencies {
     // 协程
     implementation(libs.kotlinx.coroutines.android)
 
+    // 液态玻璃（底部导航栏背景模糊）
+    implementation(libs.haze)
+
     // 测试
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
