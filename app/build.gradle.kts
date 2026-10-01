@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -8,14 +7,15 @@ plugins {
 
 android {
     namespace = "com.fenji.scorcetrace"
-    compileSdk = 35
-    // 本机仅装有 33.0.1 / 35.0.0 两个 build-tools，显式指定避免 AGP 去下载默认版本
-    buildToolsVersion = "35.0.0"
+    compileSdk = 37
+    // 已装 build-tools 37.0.0（其原生工具已替换为 ARM64 静态版），显式指定避免 AGP 去下载默认版本
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "com.fenji.scorcetrace"
-        minSdk = 24
-        targetSdk = 35
+        // miuix-blur / backdrop 依赖 RuntimeShader，库自身声明 minSdk 33
+        minSdk = 33
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
 
@@ -41,10 +41,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -60,6 +56,12 @@ android {
         // Media3 的 ExoPlayer / Compose UI API 标记为 @UnstableApi
         // （androidx.annotation.RequiresOptIn，由 lint 检查而非编译器强制）
         disable += "UnsafeOptInUsageError"
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -109,8 +111,8 @@ dependencies {
     // 协程
     implementation(libs.kotlinx.coroutines.android)
 
-    // 液态玻璃（底部导航栏背景模糊）
-    implementation(libs.haze)
+    // 液体玻璃：KernelSU 同款悬浮底栏（miuix-blur）
+    implementation(libs.miuix.blur)
 
     // 测试
     testImplementation(libs.junit)
