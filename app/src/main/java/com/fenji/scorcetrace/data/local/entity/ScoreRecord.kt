@@ -1,10 +1,12 @@
 package com.fenji.scorcetrace.data.local.entity
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.Date
 
 /** 成绩记录：某次考试的得分情况。 */
+@Immutable
 @Entity(tableName = "score_records")
 data class ScoreRecord(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,

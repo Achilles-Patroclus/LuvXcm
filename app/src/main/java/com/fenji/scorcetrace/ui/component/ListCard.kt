@@ -8,23 +8,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,7 +30,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fenji.scorcetrace.ui.theme.Dimens
-import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 import com.fenji.scorcetrace.ui.theme.pressScale
 import com.fenji.scorcetrace.ui.theme.rememberPressSource
 
@@ -47,10 +38,8 @@ import com.fenji.scorcetrace.ui.theme.rememberPressSource
  *
  * - [accent] 传 `Color(subject.color)` 即得到科目色条；不传则用主题主色。
  * - [onClick] / [onLongClick] 用 `combinedClickable` 承接，默认均为 null（不可点）。
- * - [swipeEnabled] + [onSwipeToDelete] 为**预留**的滑动删除能力，默认关闭，
- *   不会改变各页面现有的「点删除图标」交互。
  */
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ListCard(
     title: String,
@@ -65,8 +54,6 @@ fun ListCard(
     content: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
-    swipeEnabled: Boolean = false,
-    onSwipeToDelete: () -> Unit = {},
 ) {
     val resolvedAccent =
         if (accent == Color.Unspecified) MaterialTheme.colorScheme.primary else accent
@@ -88,24 +75,7 @@ fun ListCard(
         )
     }
 
-    if (swipeEnabled) {
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) onSwipeToDelete()
-                // 返回 false：只回调结果，不真的移除，避免改变既有删除流程
-                false
-            },
-        )
-        SwipeToDismissBox(
-            state = dismissState,
-            backgroundContent = { DismissBackground() },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            card()
-        }
-    } else {
-        card()
-    }
+    card()
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -204,23 +174,5 @@ private fun ListCardSurface(
                 trailing()
             }
         }
-    }
-}
-
-@Composable
-private fun DismissBackground() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(Dimens.ListCorner))
-            .background(ScoreTraceColors.ErrorDeep.copy(alpha = 0.85f))
-            .padding(horizontal = 20.dp),
-        contentAlignment = Alignment.CenterEnd,
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.DeleteOutline,
-            contentDescription = "删除",
-            tint = Color.White,
-        )
     }
 }

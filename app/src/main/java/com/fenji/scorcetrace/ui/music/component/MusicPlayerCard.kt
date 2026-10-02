@@ -18,11 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,10 +34,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.data.player.TrackInfo
 import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
@@ -106,7 +105,7 @@ fun MusicPlayerCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.MusicNote,
+                    painter = painterResource(R.drawable.ic_music_note),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),
@@ -143,7 +142,7 @@ fun MusicPlayerCard(
 
             // ── 上一首
             SkipButton(
-                icon = Icons.Rounded.SkipPrevious,
+                icon = painterResource(R.drawable.ic_skip_previous),
                 contentDescription = "上一首",
                 onClick = onPrevious,
             )
@@ -160,7 +159,11 @@ fun MusicPlayerCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        painter = if (isPlaying) {
+                            painterResource(R.drawable.ic_pause)
+                        } else {
+                            rememberVectorPainter(Icons.Rounded.PlayArrow)
+                        },
                         contentDescription = if (isPlaying) "暂停" else "播放",
                         tint = playIconColor,
                         modifier = Modifier.size(18.dp),
@@ -170,7 +173,7 @@ fun MusicPlayerCard(
 
             // ── 下一首
             SkipButton(
-                icon = Icons.Rounded.SkipNext,
+                icon = painterResource(R.drawable.ic_skip_next),
                 contentDescription = "下一首",
                 onClick = onNext,
             )
@@ -186,7 +189,7 @@ fun MusicPlayerCard(
  */
 @Composable
 private fun SkipButton(
-    icon: ImageVector,
+    icon: Painter,
     contentDescription: String,
     onClick: () -> Unit,
 ) {
@@ -198,7 +201,7 @@ private fun SkipButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = contentDescription,
             tint = ScoreTraceColors.TextSecondary,
             modifier = Modifier.size(24.dp),
@@ -272,7 +275,11 @@ private fun PlaylistRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = if (selected) Icons.Rounded.PlayArrow else Icons.Rounded.MusicNote,
+            painter = if (selected) {
+                rememberVectorPainter(Icons.Rounded.PlayArrow)
+            } else {
+                painterResource(R.drawable.ic_music_note)
+            },
             contentDescription = null,
             tint = contentColor,
             modifier = Modifier.size(22.dp),

@@ -1,7 +1,6 @@
 package com.fenji.scorcetrace.ui.music
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -9,12 +8,9 @@ import com.fenji.scorcetrace.data.player.DEFAULT_PLAYLIST
 import com.fenji.scorcetrace.data.player.MusicPlayerManager
 import com.fenji.scorcetrace.data.player.TrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -43,15 +39,8 @@ class MusicPlayerViewModel @Inject constructor(
     private val _isPlaying = MutableStateFlow(player.isPlaying)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
-    private val _isBuffering = MutableStateFlow(player.playbackState == Player.STATE_BUFFERING)
-    val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
-
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    /** 播放进度 0f..1f，用于卡片上的进度条 */
-    private val _progress = MutableStateFlow(0f)
-    val progress: StateFlow<Float> = _progress.asStateFlow()
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -64,15 +53,10 @@ class MusicPlayerViewModel @Inject constructor(
             _currentTrack.value = DEFAULT_PLAYLIST.getOrElse(index) { _currentTrack.value }
         }
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            _isBuffering.value = playbackState == Player.STATE_BUFFERING
-        }
-
         override fun onPlayerError(error: PlaybackException) {
-            // 链接失效等致命错误：暂停并提示，不自动重试
-            _errorMessage.value = "音乐加载失败（${error.errorCodeName}）"
+            // 链接失效/断网等致命错误：暂停并给出可恢复的友好提示，不自动重试
+            _errorMessage.value = "网络异常，请重试"
             _isPlaying.value = false
-            _isBuffering.value = false
             playerManager.pause()
         }
     }
@@ -82,17 +66,6 @@ class MusicPlayerViewModel @Inject constructor(
 
     init {
         player.addListener(listener)
-
-        // 轮询播放进度；ExoPlayer 要求在其创建线程（主线程）访问，viewModelScope 正好是 Main
-        viewModelScope.launch {
-            while (isActive) {
-                val duration = player.duration
-                if (duration > 0L) {
-                    _progress.value = (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
-                }
-                delay(PROGRESS_POLL_INTERVAL_MS)
-            }
-        }
     }
 
     /**
@@ -116,7 +89,18 @@ class MusicPlayerViewModel @Inject constructor(
     }
 
     fun togglePlayPause() {
+        // 错误态下点播放键即重试，避免用户卡在错误提示上无从恢复
+        if (_errorMessage.value != null) {
+            retry()
+            return
+        }
         if (player.isPlaying) pause() else play()
+    }
+
+    /** 播放失败后重试：重新准备数据源并播放。 */
+    fun retry() {
+        player.prepare()
+        play()
     }
 
     /** 下一首：切歌后直接续播，符合「点一下就能听」的直觉。 */
@@ -140,9 +124,5 @@ class MusicPlayerViewModel @Inject constructor(
         // 只摘掉自己的监听；播放器是应用级单例，绝不在这里释放
         player.removeListener(listener)
         super.onCleared()
-    }
-
-    private companion object {
-        const val PROGRESS_POLL_INTERVAL_MS = 500L
     }
 }

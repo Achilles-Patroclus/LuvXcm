@@ -35,6 +35,8 @@ object NetworkModule {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            // 整次调用（含重定向/重试）的总时限，避免个别接口长时间挂起
+            .callTimeout(12, TimeUnit.SECONDS)
             .addInterceptor(logging)
             .build()
     }

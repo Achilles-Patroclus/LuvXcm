@@ -54,7 +54,7 @@ val DEFAULT_PLAYLIST = listOf(
  */
 @Singleton
 class MusicPlayerManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
 
     private var _exoPlayer: ExoPlayer? = null

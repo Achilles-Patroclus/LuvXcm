@@ -39,6 +39,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +63,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fenji.scorcetrace.data.local.entity.ScoreRecord
 import com.fenji.scorcetrace.data.local.entity.StudyTask
@@ -77,6 +79,7 @@ import com.fenji.scorcetrace.ui.music.component.MusicPlayerCard
 import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 import com.fenji.scorcetrace.util.DateUtils
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
@@ -92,7 +95,6 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val countdown by viewModel.countdownState.collectAsStateWithLifecycle()
     val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
     val musicError by musicViewModel.errorMessage.collectAsStateWithLifecycle()
     val currentTrack by musicViewModel.currentTrack.collectAsStateWithLifecycle()
@@ -125,7 +127,7 @@ fun HomeScreen(
                 .padding(bottom = bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
         ) {
-            CountdownCard(state = countdown)
+            CountdownCard(countdown = viewModel.countdownState)
 
             TargetSchoolCard(
                 targetSchool = state.targetSchool,
@@ -259,7 +261,12 @@ private fun rememberYearProgress(): YearProgress = remember {
 }
 
 @Composable
-private fun CountdownCard(state: CountdownUiState) {
+private fun CountdownCard(countdown: StateFlow<CountdownUiState>) {
+    // 只持有 State 对象、不在函数体直接读值：整卡不随秒级 tick 重组，各数值单元各自订阅。
+    val state = countdown.collectAsStateWithLifecycle()
+    val isEnded by remember { derivedStateOf { state.value.isEnded } }
+    val targetDateText by remember { derivedStateOf { state.value.targetDateText } }
+
     // 呼吸动画（幅度克制）：在 drawBehind 里读取，避免每帧重组整张卡片
     val transition = rememberInfiniteTransition(label = "countdownBreath")
     val breath = transition.animateFloat(
@@ -303,7 +310,7 @@ private fun CountdownCard(state: CountdownUiState) {
                 }
                 .padding(Dimens.CardPadding),
         ) {
-            if (state.isEnded) {
+            if (isEnded) {
                 Text(
                     text = "高考已结束",
                     style = MaterialTheme.typography.headlineSmall,
@@ -321,7 +328,7 @@ private fun CountdownCard(state: CountdownUiState) {
                         style = MaterialTheme.typography.labelLarge,
                         color = ScoreTraceColors.TextSecondary,
                     )
-                    DatePill(text = state.targetDateText)
+                    DatePill(text = targetDateText)
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -330,11 +337,12 @@ private fun CountdownCard(state: CountdownUiState) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    CountdownUnit(value = state.days, label = "天", modifier = Modifier.weight(1f))
-                    CountdownUnit(value = state.hours, label = "时", modifier = Modifier.weight(1f))
-                    CountdownUnit(value = state.minutes, label = "分", modifier = Modifier.weight(1f))
+                    CountdownUnit(state = state, selector = { it.days }, label = "天", modifier = Modifier.weight(1f))
+                    CountdownUnit(state = state, selector = { it.hours }, label = "时", modifier = Modifier.weight(1f))
+                    CountdownUnit(state = state, selector = { it.minutes }, label = "分", modifier = Modifier.weight(1f))
                     CountdownUnit(
-                        value = state.seconds,
+                        state = state,
+                        selector = { it.seconds },
                         label = "秒",
                         modifier = Modifier.weight(1f),
                         animated = true,
@@ -373,12 +381,15 @@ private fun DatePill(text: String) {
 
 @Composable
 private fun CountdownUnit(
-    value: Long,
+    state: State<CountdownUiState>,
+    selector: (CountdownUiState) -> Long,
     label: String,
     modifier: Modifier = Modifier,
     animated: Boolean = false,
     highlight: Boolean = false,
 ) {
+    // 各单元只订阅自己那一位数值：秒级 tick 只会重组「秒」单元，天/时/分保持不变。
+    val value by remember(selector) { derivedStateOf { selector(state.value) } }
     val text = value.toString().padStart(2, '0')
     val blockShape = RoundedCornerShape(Dimens.SubCorner)
     Column(

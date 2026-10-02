@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,12 +29,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.data.local.entity.ScoreRecord
 import com.fenji.scorcetrace.data.local.entity.Subject
 import com.fenji.scorcetrace.ui.component.EmptyView
@@ -112,7 +113,11 @@ fun ScoreScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
             ) {
-                items(items = state.records, key = { it.id }) { record ->
+                items(
+                    items = state.records,
+                    key = { it.id },
+                    contentType = { "score" },
+                ) { record ->
                     ScoreCard(
                         record = record,
                         subjectName = subjectNames[record.subjectId].orEmpty(),
@@ -167,7 +172,7 @@ private fun ScoreCard(
                 )
                 IconButton(onClick = onDelete) {
                     Icon(
-                        imageVector = Icons.Rounded.DeleteOutline,
+                        painter = painterResource(R.drawable.ic_delete_outline),
                         contentDescription = "删除",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

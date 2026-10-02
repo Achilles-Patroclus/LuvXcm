@@ -1,5 +1,6 @@
 package com.fenji.scorcetrace.ui.screen.settings
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -19,12 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -42,28 +38,33 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.ui.component.ScreenHeader
 import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 import com.fenji.scorcetrace.ui.theme.pressScale
 import com.fenji.scorcetrace.ui.theme.rememberPressSource
 import com.fenji.scorcetrace.util.DateUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val ipState by viewModel.ipState.collectAsStateWithLifecycle()
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
@@ -95,7 +97,7 @@ fun SettingsScreen(
             // ── 外观
             SettingsGroup(title = "外观") {
                 SettingsRow(
-                    icon = Icons.Rounded.DarkMode,
+                    icon = painterResource(R.drawable.ic_dark_mode),
                     title = "深色主题",
                     subtitle = "跟随此开关切换配色",
                     trailing = {
@@ -107,7 +109,7 @@ fun SettingsScreen(
                     },
                 )
                 SettingsRow(
-                    icon = Icons.Rounded.CalendarMonth,
+                    icon = painterResource(R.drawable.ic_calendar_month),
                     title = "高考日期",
                     subtitle = "点击修改首页倒计时的目标日期",
                     trailing = {
@@ -130,7 +132,7 @@ fun SettingsScreen(
             // ── 数据
             SettingsGroup(title = "数据") {
                 SettingsRow(
-                    icon = Icons.Rounded.MusicNote,
+                    icon = painterResource(R.drawable.ic_music_note),
                     title = "进入应用自动播放音乐",
                     subtitle = "关闭后首页不会自动开始播放",
                     trailing = {
@@ -142,7 +144,7 @@ fun SettingsScreen(
                     },
                 )
                 SettingsRow(
-                    icon = Icons.Rounded.DeleteOutline,
+                    icon = painterResource(R.drawable.ic_delete_outline),
                     title = "清除全部数据",
                     subtitle = "删除所有学习任务与成绩记录",
                     iconTint = MaterialTheme.colorScheme.error,
@@ -155,17 +157,19 @@ fun SettingsScreen(
             SettingsGroup(title = "网络") {
                 val ip = ipState
                 SettingsRow(
-                    icon = Icons.Rounded.Wifi,
+                    icon = painterResource(R.drawable.ic_wifi),
                     title = "当前网络 IP",
                     subtitle = when (ip) {
                         IpUiState.Loading -> "获取中…"
                         is IpUiState.Success -> ip.ip
-                        IpUiState.Error -> "获取失败，可点右侧重试"
+                        IpUiState.Error -> "网络异常，请检查网络后重试"
                     },
                     // 只有拿到 IP 时整行可点：点击复制到剪贴板
                     onClick = (ip as? IpUiState.Success)?.let { success ->
                         {
-                            clipboardManager.setText(AnnotatedString(success.ip))
+                            scope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, success.ip)))
+                            }
                             Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
                         }
                     },
@@ -196,7 +200,7 @@ fun SettingsScreen(
             // ── 关于
             SettingsGroup(title = "关于") {
                 SettingsRow(
-                    icon = Icons.Rounded.Info,
+                    icon = rememberVectorPainter(Icons.Rounded.Info),
                     title = "关于 ScoreTrace",
                     subtitle = "版本 v${state.versionName}",
                     onClick = { showAboutDialog = true },
@@ -294,7 +298,7 @@ private fun SettingsGroup(
  */
 @Composable
 private fun SettingsRow(
-    icon: ImageVector,
+    icon: Painter,
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
@@ -338,7 +342,7 @@ private fun SettingsRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = icon,
+                    painter = icon,
                     contentDescription = null,
                     tint = iconTint,
                     modifier = Modifier.size(22.dp),

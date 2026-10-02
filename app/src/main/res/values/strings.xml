@@ -7,13 +7,4 @@
     <string name="tab_plan">学习计划</string>
     <string name="tab_score">成绩</string>
     <string name="tab_settings">设置</string>
-
-    <!-- 通用文案 -->
-    <string name="action_add">添加</string>
-    <string name="action_save">保存</string>
-    <string name="action_cancel">取消</string>
-    <string name="action_delete">删除</string>
-    <string name="label_loading">加载中…</string>
-    <string name="label_empty">暂无数据</string>
-    <string name="label_all_subjects">全部科目</string>
 </resources>
