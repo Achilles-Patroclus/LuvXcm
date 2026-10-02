@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectableGroup
@@ -66,6 +66,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,12 +107,12 @@ data class BottomNavItem(
 
 val LocalFloatingBottomBarTabScale = staticCompositionLocalOf { { 1f } }
 
-/** 选中指示器的类镜面高光。浅色主题稍亮、深色主题收敛，避免刺眼。 */
-private fun iosIndicatorSpecular(lightAlpha: Float): Highlight = Highlight(
+/** 选中指示器的类镜面高光（KernelSU 原值：白色 12%）。 */
+private val iosIndicatorSpecular: Highlight = Highlight(
     width = 1.dp,
     alpha = 1f,
     style = BloomStroke(
-        color = Color.White.copy(alpha = lightAlpha),
+        color = Color.White.copy(alpha = 0.12f),
         innerBlurRadius = 2.0.dp,
         primaryLight = LightSource(
             position = LightPosition(0.5f, -0.3f, -0.05f),
@@ -244,17 +245,20 @@ fun FloatingBottomBar(
             FloatingBottomBarItem(
                 selected = index == selectedIndex,
                 onClick = { activateTab(index) },
+                modifier = Modifier.defaultMinSize(minWidth = 76.dp),
             ) {
                 val label = stringResource(item.labelRes)
                 Icon(
                     imageVector = item.icon,
                     contentDescription = label,
-                    modifier = Modifier.size(22.dp),
                 )
                 Text(
                     text = label,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
                     maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
                 )
             }
         }
@@ -277,8 +281,6 @@ fun FloatingBottomBar(
     val tabContentColor = MaterialTheme.colorScheme.onSurface
     val surfaceContainer = MaterialTheme.colorScheme.surfaceContainer
     val containerColor = if (isBlurEnabled) surfaceContainer.copy(0.4f) else surfaceContainer
-
-    val specular = remember(isInDark) { iosIndicatorSpecular(if (isInDark) 0.08f else 0.12f) }
 
     val tabsBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
@@ -388,8 +390,8 @@ fun FloatingBottomBar(
         )
     }
 
-    val baseHighlight = rememberGravityRotatedHighlight(specular, extraDegrees = -45f)
-    val pillHighlight = rememberGravityRotatedHighlight(specular, extraDegrees = 90f)
+    val baseHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+    val pillHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = 90f)
 
     val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
@@ -494,85 +496,91 @@ fun FloatingBottomBar(
                 )
             }
         }
-    }
 
-    if (tabWidthPx > 0f) {
-        val tabWidthDp = with(density) { tabWidthPx.toDp() }
-        if (isBlurEnabled) {
-            Box(
-                Modifier
-                    .padding(horizontal = 4.dp)
-                    .graphicsLayer {
-                        val progressOffset = dampedDragAnimation.value * tabWidthPx
-                        translationX = if (isLtr) progressOffset + panelOffset else -progressOffset + panelOffset
-                    }
-                    .drawBackdrop(
-                        backdrop = combinedBackdrop,
-                        shape = { pillShape },
-                        effects = {
-                            val progress = dampedDragAnimation.pressProgress
-                            lens(
-                                refractionHeight = 10.dp.toPx() * progress,
-                                refractionAmount = 14.dp.toPx() * progress,
-                                depthEffect = true,
-                                chromaticAberration = 0.5f,
+        if (tabWidthPx > 0f) {
+            val tabWidthDp = with(density) { tabWidthPx.toDp() }
+            if (isBlurEnabled) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(horizontal = 4.dp)
+                        .graphicsLayer {
+                            val progressOffset = dampedDragAnimation.value * tabWidthPx
+                            translationX = if (isLtr) progressOffset + panelOffset else -progressOffset + panelOffset
+                        }
+                        .drawBackdrop(
+                            backdrop = combinedBackdrop,
+                            shape = { pillShape },
+                            effects = {
+                                val progress = dampedDragAnimation.pressProgress
+                                lens(
+                                    refractionHeight = 10.dp.toPx() * progress,
+                                    refractionAmount = 14.dp.toPx() * progress,
+                                    depthEffect = true,
+                                    chromaticAberration = 0.5f,
+                                )
+                            },
+                            highlight = { pillHighlight.value.copy(alpha = dampedDragAnimation.pressProgress) },
+                            layerBlock = {
+                                scaleX = dampedDragAnimation.scaleX
+                                scaleY = dampedDragAnimation.scaleY
+                                val velocity = dampedDragAnimation.velocity / 10f
+                                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                            },
+                            onDrawSurface = {
+                                val progress = dampedDragAnimation.pressProgress
+                                drawRect(
+                                    color = if (!isInDark) {
+                                        Color.Black.copy(alpha = 0.1f)
+                                    } else {
+                                        Color.White.copy(alpha = 0.1f)
+                                    },
+                                    alpha = 1f - progress,
+                                )
+                                drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                            },
+                        )
+                        .innerShadow(shape = pillShape) {
+                            InnerShadow(
+                                radius = 8.dp * dampedDragAnimation.pressProgress,
+                                color = Color.Black.copy(alpha = 0.15f),
+                                alpha = dampedDragAnimation.pressProgress,
                             )
-                        },
-                        highlight = { pillHighlight.value.copy(alpha = dampedDragAnimation.pressProgress) },
-                        layerBlock = {
-                            scaleX = dampedDragAnimation.scaleX
-                            scaleY = dampedDragAnimation.scaleY
-                            val velocity = dampedDragAnimation.velocity / 10f
-                            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                        },
-                        onDrawSurface = {
-                            val progress = dampedDragAnimation.pressProgress
-                            drawRect(
-                                color = if (!isInDark) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.1f),
-                                alpha = 1f - progress,
-                            )
-                            drawRect(Color.Black.copy(alpha = 0.03f * progress))
-                        },
-                    )
-                    .innerShadow(shape = pillShape) {
-                        InnerShadow(
-                            radius = 8.dp * dampedDragAnimation.pressProgress,
-                            color = Color.Black.copy(alpha = 0.15f),
-                            alpha = dampedDragAnimation.pressProgress,
+                        }
+                        .height(56.dp)
+                        .width(tabWidthDp),
+                )
+            } else {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(horizontal = 4.dp)
+                        .graphicsLayer {
+                            val progressOffset = dampedDragAnimation.value * tabWidthPx
+                            translationX = if (isLtr) progressOffset + panelOffset else -progressOffset + panelOffset
+                        }
+                        .clip(pillShape)
+                        .background(accentColor.copy(alpha = 0.15f), pillShape)
+                        .height(56.dp)
+                        .width(tabWidthDp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    CompositionLocalProvider(LocalContentColor provides accentColor) {
+                        Row(
+                            Modifier
+                                .clearAndSetSemantics {}
+                                .wrapContentWidth(align = Alignment.Start, unbounded = true)
+                                .requiredWidth(with(density) { (totalWidthPx - 8.dp.toPx()).toDp() })
+                                .height(56.dp)
+                                .graphicsLayer {
+                                    val progressOffset = dampedDragAnimation.value * tabWidthPx
+                                    translationX = if (isLtr) -progressOffset else progressOffset
+                                },
+                            verticalAlignment = Alignment.CenterVertically,
+                            content = { content(::activateTab) },
                         )
                     }
-                    .height(56.dp)
-                    .width(tabWidthDp),
-            )
-        } else {
-            Box(
-                Modifier
-                    .padding(horizontal = 4.dp)
-                    .graphicsLayer {
-                        val progressOffset = dampedDragAnimation.value * tabWidthPx
-                        translationX = if (isLtr) progressOffset + panelOffset else -progressOffset + panelOffset
-                    }
-                    .clip(pillShape)
-                    .background(accentColor.copy(alpha = 0.15f), pillShape)
-                    .height(56.dp)
-                    .width(tabWidthDp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                CompositionLocalProvider(LocalContentColor provides accentColor) {
-                    Row(
-                        Modifier
-                            .clearAndSetSemantics {}
-                            .wrapContentWidth(align = Alignment.Start, unbounded = true)
-                            .requiredWidth(with(density) { (totalWidthPx - 8.dp.toPx()).toDp() })
-                            .height(56.dp)
-                            .graphicsLayer {
-                                val progressOffset = dampedDragAnimation.value * tabWidthPx
-                                translationX = if (isLtr) -progressOffset else progressOffset
-                            },
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = { content(::activateTab) },
-                    )
                 }
             }
         }

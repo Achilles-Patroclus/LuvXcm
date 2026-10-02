@@ -100,6 +100,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.ui.compose.material3)
+    implementation(libs.media3.datasource.okhttp)
 
     // 网络
     implementation(libs.retrofit)

@@ -16,11 +16,6 @@ object Constants {
     /** 首页展示的最近成绩条数 */
     const val HOME_RECENT_SCORE_LIMIT = 3
 
-    /** 首页音乐播放器的默认音源 */
-    const val DEFAULT_MUSIC_URL = "https://www.lequxiang.com.cn/view.php/80e6affab3677c4e9264648b4cb150b2.mp3"
-    const val DEFAULT_MUSIC_TITLE = "Whisper Of Hope"
-    const val DEFAULT_MUSIC_ARTIST = "备考轻音乐"
-
     const val DATE_PATTERN = "yyyy-MM-dd"
     const val DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm"
 

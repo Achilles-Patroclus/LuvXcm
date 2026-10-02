@@ -72,6 +72,7 @@ import com.fenji.scorcetrace.ui.component.ScreenHeader
 import com.fenji.scorcetrace.ui.component.TargetSchoolCard
 import com.fenji.scorcetrace.ui.component.TargetSchoolEditorSheet
 import com.fenji.scorcetrace.ui.music.MusicPlayerViewModel
+import com.fenji.scorcetrace.ui.music.component.MusicPlaylistSheet
 import com.fenji.scorcetrace.ui.music.component.MusicPlayerCard
 import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
@@ -94,10 +95,13 @@ fun HomeScreen(
     val countdown by viewModel.countdownState.collectAsStateWithLifecycle()
     val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
     val musicError by musicViewModel.errorMessage.collectAsStateWithLifecycle()
+    val currentTrack by musicViewModel.currentTrack.collectAsStateWithLifecycle()
+    val currentTrackIndex by musicViewModel.currentIndex.collectAsStateWithLifecycle()
     val subjectNames = state.subjects.associate { it.id to it.name }
     val subjectColors = state.subjects.associate { it.id to Color(it.color) }
     var showTargetEditor by rememberSaveable { mutableStateOf(false) }
     var showTargetDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var showPlaylist by rememberSaveable { mutableStateOf(false) }
 
     // 每次进入 App 只触发一次自动播放；切回首页不再 play()，所以不会打断正在播放的音乐
     LaunchedEffect(Unit) {
@@ -170,11 +174,14 @@ fun HomeScreen(
             // 下方由父 Column 的 bottom padding 兜住 24dp，避免贴住底部导航栏。
             MusicPlayerCard(
                 modifier = Modifier.padding(top = Dimens.TightGap),
-                title = musicViewModel.currentTrackTitle,
-                artist = musicViewModel.currentTrackArtist,
+                title = currentTrack.title,
+                artist = currentTrack.artist,
                 isPlaying = isPlaying,
                 errorMessage = musicError,
                 onTogglePlayPause = musicViewModel::togglePlayPause,
+                onPrevious = musicViewModel::skipToPrevious,
+                onNext = musicViewModel::skipToNext,
+                onTitleClick = { showPlaylist = true },
             )
         }
     }
@@ -217,6 +224,18 @@ fun HomeScreen(
             dismissButton = {
                 TextButton(onClick = { showTargetDeleteDialog = false }) { Text("取消") }
             },
+        )
+    }
+
+    if (showPlaylist) {
+        MusicPlaylistSheet(
+            tracks = musicViewModel.playlist,
+            currentIndex = currentTrackIndex,
+            onSelect = { index ->
+                musicViewModel.playTrack(index)
+                showPlaylist = false
+            },
+            onDismiss = { showPlaylist = false },
         )
     }
 }

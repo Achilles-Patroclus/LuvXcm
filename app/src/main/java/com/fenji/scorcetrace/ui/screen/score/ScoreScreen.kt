@@ -1,5 +1,6 @@
 package com.fenji.scorcetrace.ui.screen.score
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -63,8 +65,18 @@ fun ScoreScreen(
         ScreenHeader(
             title = "成绩记录",
             actions = {
-                IconButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "添加成绩")
+                IconButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = CircleShape,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "添加成绩",
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 }
             },
         )

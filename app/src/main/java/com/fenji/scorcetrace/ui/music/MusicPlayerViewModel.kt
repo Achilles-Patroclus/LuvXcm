@@ -2,10 +2,12 @@ package com.fenji.scorcetrace.ui.music
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import com.fenji.scorcetrace.data.player.DEFAULT_PLAYLIST
 import com.fenji.scorcetrace.data.player.MusicPlayerManager
-import com.fenji.scorcetrace.util.Constants
+import com.fenji.scorcetrace.data.player.TrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,10 +28,17 @@ class MusicPlayerViewModel @Inject constructor(
     private val playerManager: MusicPlayerManager,
 ) : ViewModel() {
 
-    val currentTrackTitle: String = Constants.DEFAULT_MUSIC_TITLE
-    val currentTrackArtist: String = Constants.DEFAULT_MUSIC_ARTIST
+    val playlist: List<TrackInfo> = DEFAULT_PLAYLIST
 
     private val player: Player get() = playerManager.exoPlayer
+
+    private val _currentIndex = MutableStateFlow(player.currentMediaItemIndex)
+    val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+
+    private val _currentTrack = MutableStateFlow(
+        DEFAULT_PLAYLIST.getOrElse(player.currentMediaItemIndex) { DEFAULT_PLAYLIST.first() },
+    )
+    val currentTrack: StateFlow<TrackInfo> = _currentTrack.asStateFlow()
 
     private val _isPlaying = MutableStateFlow(player.isPlaying)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -47,6 +56,12 @@ class MusicPlayerViewModel @Inject constructor(
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val index = player.currentMediaItemIndex
+            _currentIndex.value = index
+            _currentTrack.value = DEFAULT_PLAYLIST.getOrElse(index) { _currentTrack.value }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -102,6 +117,23 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun togglePlayPause() {
         if (player.isPlaying) pause() else play()
+    }
+
+    /** 下一首：切歌后直接续播，符合「点一下就能听」的直觉。 */
+    fun skipToNext() {
+        playerManager.skipToNext()
+        play()
+    }
+
+    fun skipToPrevious() {
+        playerManager.skipToPrevious()
+        play()
+    }
+
+    /** 从播放列表直接选曲播放。 */
+    fun playTrack(index: Int) {
+        playerManager.setPlaylist(DEFAULT_PLAYLIST, index)
+        play()
     }
 
     override fun onCleared() {
