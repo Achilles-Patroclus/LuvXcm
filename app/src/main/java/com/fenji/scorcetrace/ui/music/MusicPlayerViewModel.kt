@@ -1,6 +1,7 @@
 package com.fenji.scorcetrace.ui.music
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -8,9 +9,11 @@ import com.fenji.scorcetrace.data.player.DEFAULT_PLAYLIST
 import com.fenji.scorcetrace.data.player.MusicPlayerManager
 import com.fenji.scorcetrace.data.player.TrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -42,6 +45,12 @@ class MusicPlayerViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _playbackPosition = MutableStateFlow(0L)
+    val playbackPosition: StateFlow<Long> = _playbackPosition.asStateFlow()
+
+    private val _duration = MutableStateFlow(0L)
+    val duration: StateFlow<Long> = _duration.asStateFlow()
+
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
@@ -51,6 +60,9 @@ class MusicPlayerViewModel @Inject constructor(
             val index = player.currentMediaItemIndex
             _currentIndex.value = index
             _currentTrack.value = DEFAULT_PLAYLIST.getOrElse(index) { _currentTrack.value }
+            _playbackPosition.value = 0L
+            val total = player.duration
+            _duration.value = if (total > 0L) total else 0L
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -66,6 +78,16 @@ class MusicPlayerViewModel @Inject constructor(
 
     init {
         player.addListener(listener)
+        // 500ms 轮询播放进度/总时长；进度条只在叶子 composable 读值，不会拖累整页重组。
+        // ExoPlayer 必须在主线程访问，viewModelScope 默认就是 Main。
+        viewModelScope.launch {
+            while (true) {
+                _playbackPosition.value = player.currentPosition.coerceAtLeast(0L)
+                val total = player.duration
+                if (total > 0L) _duration.value = total
+                delay(PROGRESS_POLL_MILLIS)
+            }
+        }
     }
 
     /**
@@ -124,5 +146,9 @@ class MusicPlayerViewModel @Inject constructor(
         // 只摘掉自己的监听；播放器是应用级单例，绝不在这里释放
         player.removeListener(listener)
         super.onCleared()
+    }
+
+    private companion object {
+        const val PROGRESS_POLL_MILLIS = 500L
     }
 }

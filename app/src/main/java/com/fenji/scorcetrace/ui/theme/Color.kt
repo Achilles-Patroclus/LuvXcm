@@ -2,31 +2,31 @@ package com.fenji.scorcetrace.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// 浅色
-val PrimaryLight = Color(0xFF1565C0)
+// 浅色（设计稿 v1：浅灰蓝页底 + 纯白卡片 + 青蓝品牌色）
+val PrimaryLight = Color(0xFF3B82F6)
 val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFFD6E3FF)
-val OnPrimaryContainerLight = Color(0xFF001B3F)
-val SecondaryLight = Color(0xFF565E71)
+val PrimaryContainerLight = Color(0xFFDBEAFE)
+val OnPrimaryContainerLight = Color(0xFF1E40AF)
+val SecondaryLight = Color(0xFF64748B)
 val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFDAE2F9)
-val OnSecondaryContainerLight = Color(0xFF131C2B)
-val TertiaryLight = Color(0xFF705575)
+val SecondaryContainerLight = Color(0xFFE2E8F0)
+val OnSecondaryContainerLight = Color(0xFF334155)
+val TertiaryLight = Color(0xFF7C5CFC)
 val OnTertiaryLight = Color(0xFFFFFFFF)
-val BackgroundLight = Color(0xFFFDFBFF)
-val OnBackgroundLight = Color(0xFF1A1B1F)
-val SurfaceLight = Color(0xFFFDFBFF)
-val OnSurfaceLight = Color(0xFF1A1B1F)
-val SurfaceVariantLight = Color(0xFFE1E2EC)
-val OnSurfaceVariantLight = Color(0xFF44474F)
-val OutlineLight = Color(0xFF75777F)
-val OutlineVariantLight = Color(0xFFC6C8D2)
-val ErrorLight = Color(0xFFBA1A1A)
+val BackgroundLight = Color(0xFFEEF1F8)
+val OnBackgroundLight = Color(0xFF1A1A2E)
+val SurfaceLight = Color(0xFFFFFFFF)
+val OnSurfaceLight = Color(0xFF1A1A2E)
+val SurfaceVariantLight = Color(0xFFF1F5F9)
+val OnSurfaceVariantLight = Color(0xFF64748B)
+val OutlineLight = Color(0xFFE2E8F0)
+val OutlineVariantLight = Color(0xFFF1F5F9)
+val ErrorLight = Color(0xFFEF4444)
 val OnErrorLight = Color(0xFFFFFFFF)
 
 // 浅色下的分层表面（卡片之外仍有层级）
-val SurfaceContainerLight = Color(0xFFF0F2F8)
-val SurfaceContainerHighLight = Color(0xFFE8EBF3)
+val SurfaceContainerLight = Color(0xFFFFFFFF)
+val SurfaceContainerHighLight = Color(0xFFF8FAFC)
 
 // 深色
 val PrimaryDark = Color(0xFFA9C7FF)

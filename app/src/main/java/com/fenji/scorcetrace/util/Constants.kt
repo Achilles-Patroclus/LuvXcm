@@ -19,6 +19,9 @@ object Constants {
     const val DATE_PATTERN = "yyyy-MM-dd"
     const val DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm"
 
+    /** 首页标题区日期（如「10月2日 周四」），固定中文 Locale */
+    const val HEADER_DATE_PATTERN = "M月d日 EEE"
+
     /** 数据库首次创建时写入的默认科目 */
     val DEFAULT_SUBJECT_NAMES = listOf(
         "语文", "数学", "英语",

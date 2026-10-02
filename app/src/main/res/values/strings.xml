@@ -4,7 +4,7 @@
 
     <!-- 底部导航 -->
     <string name="tab_home">首页</string>
-    <string name="tab_plan">学习计划</string>
+    <string name="tab_ai">AI</string>
     <string name="tab_score">成绩</string>
-    <string name="tab_settings">设置</string>
+    <string name="tab_mine">我的</string>
 </resources>

@@ -1,7 +1,6 @@
 package com.fenji.scorcetrace.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,7 +73,7 @@ private val AppShapes = Shapes(
 
 @Composable
 fun ScoreTraceTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     // 默认关闭动态取色，保证品牌色一致；需要时打开即可
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,

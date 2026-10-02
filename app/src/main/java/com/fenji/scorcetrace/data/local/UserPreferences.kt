@@ -44,8 +44,20 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /** 是否启用深色主题 */
+    val darkTheme: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_DARK_THEME] ?: false
+    }
+
+    suspend fun setDarkTheme(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_DARK_THEME] = enabled
+        }
+    }
+
     private companion object {
         val KEY_GAOKAO_TIMESTAMP = longPreferencesKey("gaokao_timestamp")
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")
+        val KEY_DARK_THEME = booleanPreferencesKey("dark_theme")
     }
 }

@@ -12,6 +12,10 @@ object DateUtils {
 
     private fun dateTimeFormat() = SimpleDateFormat(Constants.DATE_TIME_PATTERN, Locale.getDefault())
 
+    /** 首页标题区日期，如「10月2日 周四」；固定中文 Locale，不随设备语言变化。 */
+    fun formatHeaderDate(date: Date = Date()): String =
+        SimpleDateFormat(Constants.HEADER_DATE_PATTERN, Locale.CHINESE).format(date)
+
     fun formatDate(date: Date?): String = date?.let { dateFormat().format(it) }.orEmpty()
 
     fun formatDateTime(date: Date?): String = date?.let { dateTimeFormat().format(it) }.orEmpty()

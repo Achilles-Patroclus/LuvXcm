@@ -1,89 +1,50 @@
 package com.fenji.scorcetrace.ui.screen.home
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fenji.scorcetrace.data.local.entity.ScoreRecord
-import com.fenji.scorcetrace.data.local.entity.StudyTask
-import com.fenji.scorcetrace.ui.component.EmptyView
-import com.fenji.scorcetrace.ui.component.ListCard
-import com.fenji.scorcetrace.ui.component.LoadingView
-import com.fenji.scorcetrace.ui.component.ScreenHeader
-import com.fenji.scorcetrace.ui.component.TargetSchoolCard
+import com.fenji.scorcetrace.R
+import com.fenji.scorcetrace.ui.component.AiFocusCard
+import com.fenji.scorcetrace.ui.component.CountdownCard
+import com.fenji.scorcetrace.ui.component.HomeTopBar
+import com.fenji.scorcetrace.ui.component.QuickAction
+import com.fenji.scorcetrace.ui.component.QuickActions
+import com.fenji.scorcetrace.ui.component.ScoreOverviewCard
+import com.fenji.scorcetrace.ui.component.SubjectScore
+import com.fenji.scorcetrace.ui.component.TargetSchoolCardNew
 import com.fenji.scorcetrace.ui.component.TargetSchoolEditorSheet
 import com.fenji.scorcetrace.ui.music.MusicPlayerViewModel
 import com.fenji.scorcetrace.ui.music.component.MusicPlaylistSheet
-import com.fenji.scorcetrace.ui.music.component.MusicPlayerCard
 import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
-import com.fenji.scorcetrace.util.DateUtils
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Composable
@@ -95,12 +56,14 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 只持有 State 对象、不在函数体读值：倒计时每秒 tick 不会重组整页
+    val countdown = viewModel.countdownState.collectAsStateWithLifecycle()
     val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
-    val musicError by musicViewModel.errorMessage.collectAsStateWithLifecycle()
-    val currentTrack by musicViewModel.currentTrack.collectAsStateWithLifecycle()
     val currentTrackIndex by musicViewModel.currentIndex.collectAsStateWithLifecycle()
-    val subjectNames = state.subjects.associate { it.id to it.name }
-    val subjectColors = state.subjects.associate { it.id to Color(it.color) }
+    val subjectRates by viewModel.subjectRates.collectAsStateWithLifecycle()
+    val aiTip by viewModel.aiTip.collectAsStateWithLifecycle()
+    val studyDay by viewModel.studyDayCount.collectAsStateWithLifecycle()
+
     var showTargetEditor by rememberSaveable { mutableStateOf(false) }
     var showTargetDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showPlaylist by rememberSaveable { mutableStateOf(false) }
@@ -111,82 +74,22 @@ fun HomeScreen(
         musicViewModel.autoPlayOnce(enabled = ready.autoPlayMusic)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ScreenHeader(title = "ScoreTrace")
-
-        if (state.isLoading) {
-            LoadingView()
-            return@Column
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Dimens.PageHorizontal)
-                .padding(bottom = bottomContentPadding),
-            verticalArrangement = Arrangement.spacedBy(Dimens.CardGap),
-        ) {
-            CountdownCard(countdown = viewModel.countdownState)
-
-            TargetSchoolCard(
-                targetSchool = state.targetSchool,
-                onClick = { showTargetEditor = true },
-                onLongClick = { showTargetDeleteDialog = true },
-            )
-
-            SectionTitle("今日学习任务")
-            if (state.todayTasks.isEmpty()) {
-                EmptyView(
-                    message = "今天暂无学习任务",
-                    subtitle = "去「学习计划」安排今天要完成的内容",
-                    actionLabel = "添加学习任务",
-                    onAction = onOpenPlan,
-                )
-            } else {
-                state.todayTasks.forEach { task ->
-                    HomeTaskCard(
-                        task = task,
-                        subjectName = subjectNames[task.subjectId].orEmpty(),
-                        accent = subjectColors[task.subjectId] ?: Color.Unspecified,
-                        onToggle = { viewModel.toggleTask(task) },
-                    )
-                }
-            }
-
-            SectionTitle("最近成绩")
-            if (state.recentScores.isEmpty()) {
-                EmptyView(
-                    message = "还没有成绩记录",
-                    subtitle = "记录每一次考试，才看得见进步的曲线",
-                    actionLabel = "记录成绩",
-                    onAction = onOpenScore,
-                )
-            } else {
-                state.recentScores.forEach { record ->
-                    HomeScoreCard(
-                        record = record,
-                        subjectName = subjectNames[record.subjectId].orEmpty(),
-                        accent = subjectColors[record.subjectId] ?: Color.Unspecified,
-                    )
-                }
-            }
-
-            // 迷你播放器收在页面最底部：16dp(spacedBy) + 8dp ≈ SectionGap，与上方成绩区块分组；
-            // 下方由父 Column 的 bottom padding 兜住 24dp，避免贴住底部导航栏。
-            MusicPlayerCard(
-                modifier = Modifier.padding(top = Dimens.TightGap),
-                title = currentTrack.title,
-                artist = currentTrack.artist,
-                isPlaying = isPlaying,
-                errorMessage = musicError,
-                onTogglePlayPause = musicViewModel::togglePlayPause,
-                onPrevious = musicViewModel::skipToPrevious,
-                onNext = musicViewModel::skipToNext,
-                onTitleClick = { showPlaylist = true },
-            )
-        }
-    }
+    HomeScreenContent(
+        state = state,
+        countdown = countdown,
+        isPlaying = isPlaying,
+        studyDay = studyDay,
+        subjectRates = subjectRates,
+        aiTip = aiTip,
+        bottomContentPadding = bottomContentPadding,
+        onTargetClick = { showTargetEditor = true },
+        onTargetLongClick = { showTargetDeleteDialog = true },
+        onMusicClick = { showPlaylist = true },
+        onNotificationClick = {},
+        onDetailClick = onOpenScore,
+        onRefreshAiTip = viewModel::refreshAiTip,
+        onOpenPlan = onOpenPlan,
+    )
 
     if (showTargetEditor) {
         TargetSchoolEditorSheet(
@@ -242,322 +145,129 @@ fun HomeScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 倒计时卡片
-// ─────────────────────────────────────────────────────────────
+/** 首页内容（无状态）：状态与回调由 [HomeScreen] 注入，便于 Preview 与职责分离。 */
+@Composable
+private fun HomeScreenContent(
+    state: HomeUiState,
+    countdown: State<CountdownUiState>,
+    isPlaying: Boolean,
+    studyDay: Int,
+    subjectRates: List<SubjectScore>,
+    aiTip: String,
+    bottomContentPadding: Dp,
+    onTargetClick: () -> Unit,
+    onTargetLongClick: () -> Unit,
+    onMusicClick: () -> Unit,
+    onNotificationClick: () -> Unit,
+    onDetailClick: () -> Unit,
+    onRefreshAiTip: () -> Unit,
+    onOpenPlan: () -> Unit,
+) {
+    val yearPassedPercent = rememberYearPassedPercent()
 
-/** 「今年已过 / 全年」的只读派生数据，由系统时间在本地推导，不涉及任何业务状态。 */
-private data class YearProgress(val passedDays: Int, val totalDays: Int) {
-    val fraction: Float
-        get() = if (totalDays <= 0) 0f else (passedDays.toFloat() / totalDays).coerceIn(0f, 1f)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ScoreTraceColors.PageBackgroundLight)
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = bottomContentPadding),
+    ) {
+        // 1. 顶部标题栏
+        HomeTopBar(
+            subtitle = "早上好，备考第 $studyDay 天",
+            isMusicPlaying = isPlaying,
+            onMusicClick = onMusicClick,
+            onNotificationClick = onNotificationClick,
+        )
+
+        // 2. 倒计时卡
+        CountdownCard(
+            countdown = countdown,
+            yearPassedPercent = yearPassedPercent,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(Dimens.CardGap))
+
+        // 3. 目标院校卡
+        TargetSchoolCardNew(
+            targetSchool = state.targetSchool,
+            onClick = onTargetClick,
+            onLongClick = onTargetLongClick,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(Dimens.CardGap))
+
+        // 4. 成绩概览卡
+        ScoreOverviewCard(
+            subjects = subjectRates,
+            // TODO: 总分/排名/较上次变化需从成绩汇总实体获取，当前为硬编码占位（数据模型暂无排名字段）
+            totalScore = "562",
+            rankText = "班级第15",
+            deltaText = "较上次 ↑12 分",
+            deltaPositive = true,
+            onDetailClick = onDetailClick,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(Dimens.CardGap))
+
+        // 5. AI 重点卡
+        AiFocusCard(
+            title = "今日 AI 重点",
+            content = aiTip,
+            onRefresh = onRefreshAiTip,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(Dimens.SectionGap))
+
+        // 6. 快捷功能
+        Text(
+            text = "快捷功能",
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            color = ScoreTraceColors.TextPrimaryLight,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        QuickActions(
+            actions = listOf(
+                QuickAction(
+                    label = "AI录成绩",
+                    icon = painterResource(R.drawable.ic_photo_camera),
+                    color = ScoreTraceColors.QuickActionBlue,
+                ) {},
+                QuickAction(
+                    label = "学习计时器",
+                    icon = painterResource(R.drawable.ic_timer),
+                    color = ScoreTraceColors.QuickActionGreen,
+                ) {},
+                QuickAction(
+                    label = "错题本",
+                    icon = painterResource(R.drawable.ic_book),
+                    color = ScoreTraceColors.QuickActionOrange,
+                ) {},
+                QuickAction(
+                    label = "学习计划",
+                    icon = painterResource(R.drawable.ic_calendar_month),
+                    color = ScoreTraceColors.QuickActionPurple,
+                    onClick = onOpenPlan,
+                ),
+            ),
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+
+        Spacer(modifier = Modifier.height(Dimens.SectionGap))
+    }
 }
 
+/** 「今年已过百分比」，由系统时间本地推导，不涉及业务状态。 */
 @Composable
-private fun rememberYearProgress(): YearProgress = remember {
+private fun rememberYearPassedPercent(): Int = remember {
     val calendar = Calendar.getInstance()
     val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
     val totalDays = calendar.getActualMaximum(Calendar.DAY_OF_YEAR)
-    YearProgress(passedDays = dayOfYear, totalDays = if (totalDays > 0) totalDays else 365)
+    if (totalDays > 0) (dayOfYear * 100f / totalDays).roundToInt() else 0
 }
-
-@Composable
-private fun CountdownCard(countdown: StateFlow<CountdownUiState>) {
-    // 只持有 State 对象、不在函数体直接读值：整卡不随秒级 tick 重组，各数值单元各自订阅。
-    val state = countdown.collectAsStateWithLifecycle()
-    val isEnded by remember { derivedStateOf { state.value.isEnded } }
-    val targetDateText by remember { derivedStateOf { state.value.targetDateText } }
-
-    // 呼吸动画（幅度克制）：在 drawBehind 里读取，避免每帧重组整张卡片
-    val transition = rememberInfiniteTransition(label = "countdownBreath")
-    val breath = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2_400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "breath",
-    )
-
-    val year = rememberYearProgress()
-    val yearAnim = remember { Animatable(0f) }
-    LaunchedEffect(year.fraction) {
-        yearAnim.animateTo(year.fraction, animationSpec = tween(900, easing = FastOutSlowInEasing))
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimens.CardCorner),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, ScoreTraceColors.CardBorder),
-        shadowElevation = 8.dp,
-    ) {
-        Column(
-            modifier = Modifier
-                .background(Brush.linearGradient(ScoreTraceColors.HighlightGradientDark))
-                .drawBehind {
-                    val glow = 0.02f + 0.06f * breath.value
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                ScoreTraceColors.AccentCyan.copy(alpha = glow),
-                                Color.Transparent,
-                            ),
-                            center = Offset(size.width * 0.85f, size.height * 0.05f),
-                            radius = size.maxDimension * 0.9f,
-                        ),
-                    )
-                }
-                .padding(Dimens.CardPadding),
-        ) {
-            if (isEnded) {
-                Text(
-                    text = "高考已结束",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = ScoreTraceColors.AccentCyan,
-                )
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "距高考还有",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = ScoreTraceColors.TextSecondary,
-                    )
-                    DatePill(text = targetDateText)
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CountdownUnit(state = state, selector = { it.days }, label = "天", modifier = Modifier.weight(1f))
-                    CountdownUnit(state = state, selector = { it.hours }, label = "时", modifier = Modifier.weight(1f))
-                    CountdownUnit(state = state, selector = { it.minutes }, label = "分", modifier = Modifier.weight(1f))
-                    CountdownUnit(
-                        state = state,
-                        selector = { it.seconds },
-                        label = "秒",
-                        modifier = Modifier.weight(1f),
-                        animated = true,
-                        highlight = true,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                YearProgressBar(
-                    progress = { yearAnim.value },
-                    passedDays = year.passedDays,
-                    totalDays = year.totalDays,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DatePill(text: String) {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(ScoreTraceColors.AccentCyan.copy(alpha = 0.16f))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = ScoreTraceColors.AccentCyan,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun CountdownUnit(
-    state: State<CountdownUiState>,
-    selector: (CountdownUiState) -> Long,
-    label: String,
-    modifier: Modifier = Modifier,
-    animated: Boolean = false,
-    highlight: Boolean = false,
-) {
-    // 各单元只订阅自己那一位数值：秒级 tick 只会重组「秒」单元，天/时/分保持不变。
-    val value by remember(selector) { derivedStateOf { selector(state.value) } }
-    val text = value.toString().padStart(2, '0')
-    val blockShape = RoundedCornerShape(Dimens.SubCorner)
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(blockShape)
-                .background(Color.White.copy(alpha = 0.08f))
-                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), blockShape)
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (animated) {
-                // 秒数变化时做缩放 + 淡入淡出，避免数字直接跳变造成抖动
-                AnimatedContent(
-                    targetState = text,
-                    transitionSpec = {
-                        (fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.6f))
-                            .togetherWith(
-                                fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 1.3f)
-                            )
-                    },
-                    label = "countdownSeconds",
-                ) { current ->
-                    CountdownNumber(current, highlight)
-                }
-            } else {
-                CountdownNumber(text, highlight)
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = ScoreTraceColors.TextTertiary,
-        )
-    }
-}
-
-@Composable
-private fun CountdownNumber(text: String, highlight: Boolean) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        color = if (highlight) ScoreTraceColors.AccentCyan else Color.White,
-        textAlign = TextAlign.Center,
-    )
-}
-
-/** 年度进度条：细线 3dp + 圆角，展示「今年已过天数 / 全年天数」。 */
-@Composable
-private fun YearProgressBar(
-    progress: () -> Float,
-    passedDays: Int,
-    totalDays: Int,
-) {
-    val percent = if (totalDays <= 0) 0 else (passedDays * 100f / totalDays).roundToInt()
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "今年已过 $passedDays 天 / 全年 $totalDays 天",
-                style = MaterialTheme.typography.labelSmall,
-                color = ScoreTraceColors.TextTertiary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Text(
-                text = "$percent%",
-                style = MaterialTheme.typography.labelSmall,
-                color = ScoreTraceColors.AccentCyan,
-                maxLines = 1,
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp),
-        ) {
-            val radius = size.height / 2f
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.14f),
-                cornerRadius = CornerRadius(radius),
-            )
-            val filled = size.width * progress().coerceIn(0f, 1f)
-            if (filled > 1f) {
-                drawRoundRect(
-                    brush = Brush.horizontalGradient(
-                        listOf(ScoreTraceColors.AccentBlue, ScoreTraceColors.AccentCyan),
-                    ),
-                    size = Size(filled, size.height),
-                    cornerRadius = CornerRadius(min(radius, filled / 2f)),
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// 列表区块
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            // 16dp(spacedBy) + 8dp ≈ SectionGap(24dp)，形成区块分组感
-            .padding(top = Dimens.TightGap)
-            .semantics { heading() },
-    )
-}
-
-@Composable
-private fun HomeTaskCard(
-    task: StudyTask,
-    subjectName: String,
-    accent: Color,
-    onToggle: () -> Unit,
-) {
-    val due = task.dueDate?.let { "截止 " + DateUtils.formatDate(it) }.orEmpty()
-    ListCard(
-        title = task.title,
-        subtitle = listOf(subjectName, due).filter { it.isNotEmpty() }.joinToString(" · ")
-            .ifEmpty { null },
-        accent = accent,
-        titleDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-        leading = {
-            Checkbox(
-                checked = task.isCompleted,
-                onCheckedChange = { onToggle() },
-                colors = CheckboxDefaults.colors(checkedColor = ScoreTraceColors.AccentCyan),
-            )
-        },
-    )
-}
-
-@Composable
-private fun HomeScoreCard(record: ScoreRecord, subjectName: String, accent: Color) {
-    val date = DateUtils.formatDate(record.examDate)
-    ListCard(
-        title = record.examName,
-        subtitle = if (subjectName.isEmpty()) date else "$subjectName · $date",
-        accent = accent,
-        trailing = {
-            Text(
-                text = "${formatScore(record.score)} / ${formatScore(record.fullScore)}",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                modifier = Modifier.padding(end = 10.dp),
-            )
-        },
-    )
-}
-
-/** 去掉 Double 的冗余 ".0"，让「120.0 / 150.0」显示为「120 / 150」。纯展示层处理。 */
-private fun formatScore(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()

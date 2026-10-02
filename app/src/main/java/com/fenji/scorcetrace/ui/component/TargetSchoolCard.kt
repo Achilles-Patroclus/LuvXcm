@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -41,13 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.data.local.entity.TargetSchool
 import com.fenji.scorcetrace.ui.theme.Dimens
@@ -61,7 +60,7 @@ import java.util.Calendar
  *
  * - [targetSchool] 为 null 时渲染引导态「点击设定你的目标院校」，避免首页出现空白占位；
  * - 点击 → 打开编辑面板（预填当前值）；长按 → 触发删除确认；
- * - 当前分 ≥ 目标分用成功色，低于目标分用错误色；
+ * - 当前分 ≥ 目标分用成功色，低于目标分用橙色警示（深色主题亮橙 #FF9800，浅色主题深琥珀 AccentAmberDeep 保对比度）；
  * - 采用暖橙次级强调（[ScoreTraceColors.AccentAmber]）与倒计时卡的冷青拉开层次，
  *   圆角 / 描边沿用项目既有语汇（[Dimens.CardCorner] + outlineVariant）。
  */
@@ -110,7 +109,7 @@ private fun TargetSchoolEmptyContent() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(Dimens.CardPadding),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -157,14 +156,16 @@ private fun TargetSchoolEmptyContent() {
     }
 }
 
-/** 已设定态：左侧院校 / 专业 / 年份，右侧「当前分 / 目标分」与差距提示。 */
+/** 已设定态：左侧院校 / 专业 / 年份，右侧「当前 / 目标」与差距提示。 */
 @Composable
 private fun TargetSchoolContent(targetSchool: TargetSchool) {
     val reached = targetSchool.currentScore >= targetSchool.targetScore
-    val scoreColor = when {
-        reached && isSystemInDarkTheme() -> ScoreTraceColors.SuccessDark
+    val dark = isSystemInDarkTheme()
+    val currentColor = when {
+        reached && dark -> ScoreTraceColors.SuccessDark
         reached -> ScoreTraceColors.SuccessLight
-        else -> MaterialTheme.colorScheme.error
+        dark -> ScoreTraceColors.ScoreWarn
+        else -> ScoreTraceColors.AccentAmberDeep
     }
     val gapText = if (reached) {
         "已达标"
@@ -175,35 +176,18 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 暖橙强调条：与倒计时卡的冷青形成区分
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(52.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            ScoreTraceColors.AccentAmber,
-                            ScoreTraceColors.AccentAmber.copy(alpha = 0.45f),
-                        ),
-                    ),
-                ),
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = targetSchool.schoolName,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, lineHeight = 26.sp),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = targetSchool.majorName,
                 style = MaterialTheme.typography.bodySmall,
@@ -211,7 +195,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${targetSchool.year} 年高考",
                 style = MaterialTheme.typography.labelSmall,
@@ -220,7 +204,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
             )
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
@@ -235,13 +219,13 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
                     text = targetSchool.currentScore.toString(),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = scoreColor,
+                    color = currentColor,
                     maxLines = 1,
                 )
                 Text(
                     text = " / ${targetSchool.targetScore}",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
@@ -250,7 +234,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
             Text(
                 text = gapText,
                 style = MaterialTheme.typography.labelSmall,
-                color = scoreColor,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
         }

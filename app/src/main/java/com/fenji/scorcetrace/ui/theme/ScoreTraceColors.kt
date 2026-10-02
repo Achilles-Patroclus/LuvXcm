@@ -17,6 +17,9 @@ object ScoreTraceColors {
     val AccentBlue = Color(0xFF5B86E5)
     val BrandBlue = Color(0xFF1565C0)
 
+    /** 浅色页面上的青蓝强调（文字 / 图标）：压深以保证 ≥4.5:1 对比度 */
+    val AccentCyanOnLight = Color(0xFF00707C)
+
     // ── 页面底渐变（比卡片再深一档，让卡片「浮」起来）
     val PageGradientDark = listOf(Color(0xFF12121C), Color(0xFF1D1D2B))
     val PageGradientLight = listOf(Color(0xFFF6F8FC), Color(0xFFE9EDF5))
@@ -37,11 +40,11 @@ object ScoreTraceColors {
     val TextTertiary = Color(0xFFFFFFFF).copy(alpha = 0.50f)
 
     // 浅色页面上的弱化文字
-    val TextTertiaryLight = Color(0xFF44474F).copy(alpha = 0.75f)
+    val TextTertiaryLight = Color(0xFF9CA3AF)
 
     // ── 描边
     val CardBorder = Color(0xFFFFFFFF).copy(alpha = 0.20f)
-    val CardBorderLight = BrandBlue.copy(alpha = 0.10f)
+    val CardBorderLight = Color(0xFFE5E7EB)
     val HairlineBorder = Color(0xFFFFFFFF).copy(alpha = 0.12f)
     val HairlineBorderLight = Color(0xFF1565C0).copy(alpha = 0.14f)
 
@@ -57,6 +60,43 @@ object ScoreTraceColors {
     //    避免首页两张大卡抢焦点；深/浅主题下都保证 ≥3:1 的图标对比度。
     val AccentAmber = Color(0xFFE0912F)
     val AccentAmberDeep = Color(0xFFB26A00)
+
+    /** 当前分低于目标分时的警示色（橙，比纯红柔和；用于目标院校卡分数） */
+    val ScoreWarn = Color(0xFFFF9800)
+
+    // ── 浅色主题（设计稿 v1）
+    /** 页面背景：浅灰蓝，比纯白多一层呼吸感 */
+    val PageBackgroundLight = Color(0xFFEEF1F8)
+
+    /** 卡片背景：纯白 */
+    val CardBackgroundLight = Color(0xFFFFFFFF)
+
+    /** 品牌主色（设计稿青蓝） */
+    val BrandPrimary = Color(0xFF3B82F6)
+    val BrandPrimaryLight = Color(0xFF60A5FA)
+    val BrandPrimaryDark = Color(0xFF2563EB)
+
+    /** 品牌渐变（倒计时卡 / 音乐胶囊用） */
+    val BrandGradient = listOf(Color(0xFF3B82F6), Color(0xFF5BB8E8))
+
+    /** 目标院校紫色 */
+    val SchoolPurple = Color(0xFF7C5CFC)
+    val SchoolPurpleLight = Color(0xFF9B7FFF)
+
+    /** 文字层级（浅色主题） */
+    val TextPrimaryLight = Color(0xFF1A1A2E)
+    val TextSecondaryLight = Color(0xFF6B7280)
+
+    /** 语义色（浅色） */
+    val SuccessGreen = Color(0xFF10B981)
+    val WarningOrange = Color(0xFFF59E0B)
+    val ErrorRed = Color(0xFFEF4444)
+
+    /** 快捷功能四色 */
+    val QuickActionBlue = Color(0xFF3B82F6)
+    val QuickActionGreen = Color(0xFF10B981)
+    val QuickActionOrange = Color(0xFFF59E0B)
+    val QuickActionPurple = Color(0xFF8B5CF6)
 
     // ── 强调色上的前景色（保证对比度）
     val OnAccentDeep = Color(0xFF0B1B23)
