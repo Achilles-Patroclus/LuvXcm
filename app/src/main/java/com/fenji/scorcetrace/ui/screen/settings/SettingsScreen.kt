@@ -1,7 +1,6 @@
 package com.fenji.scorcetrace.ui.screen.settings
 
 import android.content.ClipData
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,6 +62,7 @@ import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 import com.fenji.scorcetrace.ui.theme.pressScale
 import com.fenji.scorcetrace.ui.theme.rememberPressSource
+import com.fenji.scorcetrace.util.AppToast
 import com.fenji.scorcetrace.util.DateUtils
 import kotlinx.coroutines.launch
 
@@ -170,7 +170,7 @@ fun SettingsScreen(
                             scope.launch {
                                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, success.ip)))
                             }
-                            Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                            AppToast.success(context, "已复制")
                         }
                     },
                     trailing = {

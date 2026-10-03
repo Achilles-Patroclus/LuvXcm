@@ -1,7 +1,6 @@
 package com.fenji.scorcetrace.ui.navigation
 
 import android.app.Activity
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -43,6 +42,7 @@ import com.fenji.scorcetrace.ui.screen.plan.PlanScreen
 import com.fenji.scorcetrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scorcetrace.ui.screen.score.ScoreScreenNew
 import com.fenji.scorcetrace.ui.screen.settings.SettingsScreen
+import com.fenji.scorcetrace.util.AppToast
 
 /**
  * 顶层导航。音乐播放器的 ViewModel 在这一层获取——它的 ViewModelStoreOwner 是 Activity，
@@ -80,7 +80,7 @@ fun AppNavHost(
                 (context as? Activity)?.finish()
             } else {
                 lastBackPressTime = now
-                Toast.makeText(context, "再按一次退出应用", Toast.LENGTH_SHORT).show()
+                AppToast.info(context, "再按一次退出应用")
             }
         } else {
             navController.popBackStack()

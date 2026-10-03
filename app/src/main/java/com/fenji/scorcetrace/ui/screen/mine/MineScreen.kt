@@ -1,7 +1,6 @@
 package com.fenji.scorcetrace.ui.screen.mine
 
 import android.content.ClipData
-import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +38,7 @@ import com.fenji.scorcetrace.ui.component.mine.SettingNavigateItem
 import com.fenji.scorcetrace.ui.component.mine.SettingSwitchItem
 import com.fenji.scorcetrace.ui.component.mine.UserProfileCard
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
+import com.fenji.scorcetrace.util.AppToast
 import kotlinx.coroutines.launch
 
 private val GraySlate = Color(0xFF64748B)
@@ -152,7 +152,7 @@ fun MineScreen(
                                 ClipEntry(ClipData.newPlainText(null, networkIp))
                             )
                         }
-                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                        AppToast.success(context, "已复制")
                     },
                 )
                 SettingDivider()
