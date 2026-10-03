@@ -1,5 +1,13 @@
 package com.fenji.scorcetrace.ui.navigation
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,8 +18,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -56,6 +68,25 @@ fun AppNavHost(
         BottomBarTab(Screen.Mine, R.string.tab_mine, rememberVectorPainter(Icons.Filled.Person)),
     )
 
+    // 返回键：四个底部 Tab 上连按两次退出应用；其余子页面（成绩详情/学习计划/设置）返回上一页。
+    // 用当前路由判定层级，避免依赖子页面的具体 route 前缀。
+    val topLevelRoutes = listOf(Screen.Home.route, Screen.AI.route, Screen.Score.route, Screen.Mine.route)
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+    val context = LocalContext.current
+    BackHandler {
+        if (currentRoute in topLevelRoutes) {
+            val now = System.currentTimeMillis()
+            if (now - lastBackPressTime < 2000L) {
+                (context as? Activity)?.finish()
+            } else {
+                lastBackPressTime = now
+                Toast.makeText(context, "再按一次退出应用", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            navController.popBackStack()
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -76,6 +107,30 @@ fun AppNavHost(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(280, easing = FastOutSlowInEasing),
+                ) + fadeIn(animationSpec = tween(280))
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(280, easing = FastOutSlowInEasing),
+                ) + fadeOut(animationSpec = tween(280))
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(280, easing = FastOutSlowInEasing),
+                ) + fadeIn(animationSpec = tween(280))
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(280, easing = FastOutSlowInEasing),
+                ) + fadeOut(animationSpec = tween(280))
+            },
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(

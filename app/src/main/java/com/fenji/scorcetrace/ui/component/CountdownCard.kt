@@ -52,11 +52,11 @@ fun CountdownCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(Brush.horizontalGradient(ScoreTraceColors.BrandGradient))
-            .padding(20.dp),
+            .padding(16.dp),
     ) {
         CountdownHeader(countdown)
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -73,7 +73,7 @@ fun CountdownCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         YearProgress(yearPassedPercent)
     }
@@ -90,12 +90,12 @@ private fun CountdownHeader(countdown: State<CountdownUiState>) {
             painter = painterResource(R.drawable.ic_calendar_month),
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = "距离${targetYear}年高考还有",
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             color = Color.White.copy(alpha = 0.85f),
         )
     }
@@ -116,7 +116,7 @@ private fun DaysValue(countdown: State<CountdownUiState>) {
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = "天",
-            fontSize = 20.sp,
+            fontSize = 17.sp,
             color = Color.White.copy(alpha = 0.9f),
             modifier = Modifier.padding(bottom = 6.dp),
         )
@@ -147,14 +147,14 @@ private fun YearProgress(yearPassedPercent: Int) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(7.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(Color.White.copy(alpha = 0.25f)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth((yearPassedPercent / 100f).coerceIn(0f, 1f))
-                    .height(6.dp)
+                    .height(7.dp)
                     .clip(RoundedCornerShape(3.dp))
                     .background(Color.White),
             )
@@ -176,18 +176,18 @@ private fun TimeUnitBox(
             .clip(RoundedCornerShape(10.dp))
             // 半透明白底：秒比时分略亮，形成层级；alpha 提高以拉开白色数字的对比度
             .background(Color.White.copy(alpha = if (highlight) 0.35f else 0.25f))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 11.dp, vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = value.toString().padStart(2, '0'),
-            fontSize = 18.sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
         )
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             color = Color.White.copy(alpha = 0.85f),
         )
     }

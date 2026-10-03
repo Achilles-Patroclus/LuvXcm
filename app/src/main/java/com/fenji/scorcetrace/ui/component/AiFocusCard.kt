@@ -54,14 +54,14 @@ fun AiFocusCard(
                     cornerRadius = CornerRadius(2.dp.toPx()),
                 )
             }
-            .padding(start = 20.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+            .padding(start = 12.dp, top = 10.dp, end = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // 机器人图标
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(24.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -69,10 +69,10 @@ fun AiFocusCard(
                 painter = painterResource(R.drawable.ic_smart_toy),
                 contentDescription = null,
                 tint = ScoreTraceColors.BrandPrimary,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(14.dp),
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         // 右侧：标题行 + 正文
         Column(modifier = Modifier.weight(1f)) {
@@ -82,7 +82,7 @@ fun AiFocusCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = ScoreTraceColors.BrandPrimary,
                     modifier = Modifier.weight(1f),
@@ -93,7 +93,7 @@ fun AiFocusCard(
                         .clip(RoundedCornerShape(8.dp))
                         .background(ScoreTraceColors.PageBackgroundLight)
                         .clickable(onClick = onRefresh)
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                        .padding(horizontal = 7.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
@@ -103,17 +103,17 @@ fun AiFocusCard(
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("换一条", fontSize = 12.sp, color = ScoreTraceColors.TextSecondaryLight)
+                    Text("换一条", fontSize = 10.sp, color = ScoreTraceColors.TextSecondaryLight)
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = content,
-                fontSize = 15.sp,
+                fontSize = 11.sp,
                 color = ScoreTraceColors.TextPrimaryLight,
-                lineHeight = 22.sp,
+                lineHeight = 16.sp,
             )
         }
     }

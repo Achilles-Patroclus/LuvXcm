@@ -39,7 +39,7 @@ fun RadarChart(
         val n = labels.size
         if (n == 0) return@Canvas
         val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension / 2f - 24.dp.toPx() // 留出标签空间
+        val radius = size.minDimension * 0.33f
         val angleStep = (2 * Math.PI / n).toFloat()
         val startAngle = -Math.PI / 2 // 从顶部开始，顺时针
 
@@ -110,7 +110,7 @@ fun RadarChart(
         // 标签
         for (i in 0 until n) {
             val angle = startAngle + i * angleStep
-            val labelRadius = radius + 16.dp.toPx()
+            val labelRadius = radius + size.minDimension * 0.11f
             val x = center.x + labelRadius * cos(angle)
             val y = center.y + labelRadius * sin(angle)
             val textLayout = textMeasurer.measure(labels[i], labelStyle)

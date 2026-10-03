@@ -47,7 +47,7 @@ fun HomeTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 左侧标题区
@@ -55,13 +55,13 @@ fun HomeTopBar(
             Row {
                 Text(
                     text = "Score",
-                    style = MaterialTheme.typography.headlineSmall,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = ScoreTraceColors.TextPrimaryLight,
                 )
                 Text(
                     text = "Trace",
-                    style = MaterialTheme.typography.headlineSmall,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = ScoreTraceColors.BrandPrimary,
                 )
@@ -69,7 +69,7 @@ fun HomeTopBar(
             Spacer(modifier = Modifier.size(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 13.sp,
+                fontSize = 11.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -82,7 +82,7 @@ fun HomeTopBar(
                     .clip(RoundedCornerShape(16.dp))
                     .background(Brush.horizontalGradient(ScoreTraceColors.BrandGradient))
                     .clickable(onClick = onMusicClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -90,7 +90,7 @@ fun HomeTopBar(
                         painter = painterResource(R.drawable.ic_music_note),
                         contentDescription = if (isMusicPlaying) "音乐播放中" else "音乐",
                         tint = Color.White,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     // 频谱图标用三个竖条模拟
@@ -120,7 +120,7 @@ fun HomeTopBar(
             // 通知铃铛
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
                     .clickable(onClick = onNotificationClick),
@@ -130,7 +130,7 @@ fun HomeTopBar(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "通知",
                     tint = ScoreTraceColors.TextPrimaryLight,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                 )
                 // 红点
                 Box(

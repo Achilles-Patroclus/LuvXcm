@@ -37,6 +37,9 @@ import java.util.Locale
  * 顶部：紫色渐变校徽方块 + 学校名 + 985 标签 + 专业 + 右箭头
  * 中部：三列分数（目标分/当前分/还差）
  * 底部：达成率进度条 + 百分比
+ *
+ * 各文本显式指定 lineHeight：真机系统字体是手写体、行高天然偏大，
+ * 不指定会把卡片撑高。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -57,7 +60,7 @@ fun TargetSchoolCardNew(
                 onLongClick = onLongClick.takeIf { targetSchool != null },
                 onClick = onClick,
             )
-            .padding(16.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         if (targetSchool == null) {
             TargetSchoolEmptyContent()
@@ -72,29 +75,32 @@ private fun TargetSchoolEmptyContent() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(34.dp)
+                .clip(RoundedCornerShape(11.dp))
                 .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "?",
-                fontSize = 20.sp,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = ScoreTraceColors.SchoolPurple,
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column {
             Text(
                 text = "设定目标院校",
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Text(
                 text = "点击设定你的目标大学和专业",
-                fontSize = 13.sp,
+                fontSize = 15.sp,
+                lineHeight = 18.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -107,8 +113,8 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(34.dp)
+                .clip(RoundedCornerShape(11.dp))
                 .background(
                     Brush.linearGradient(
                         listOf(ScoreTraceColors.SchoolPurple, ScoreTraceColors.SchoolPurpleLight),
@@ -118,31 +124,34 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
         ) {
             Text(
                 text = targetSchool.schoolName.take(1),
-                fontSize = 20.sp,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = targetSchool.schoolName,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
+                    lineHeight = 20.sp,
                     color = ScoreTraceColors.TextPrimaryLight,
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 // TODO: 985/211 标签需从 TargetSchool.tag 字段获取，当前硬编码（避免数据库迁移）
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(3.dp))
                         .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.12f))
-                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                        .padding(horizontal = 3.dp, vertical = 1.dp),
                 ) {
                     Text(
                         text = "985",
                         fontSize = 10.sp,
+                        lineHeight = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = ScoreTraceColors.SchoolPurple,
                     )
@@ -150,7 +159,8 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
             }
             Text(
                 text = targetSchool.majorName,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
+                lineHeight = 17.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -158,10 +168,11 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
             painter = painterResource(R.drawable.ic_chevron_right),
             contentDescription = "编辑",
             tint = ScoreTraceColors.TextTertiaryLight,
+            modifier = Modifier.size(20.dp),
         )
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(8.dp))
 
     // 三列分数
     Row(
@@ -176,7 +187,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
         Box(
             modifier = Modifier
                 .width(1.dp)
-                .height(36.dp)
+                .height(20.dp)
                 .background(ScoreTraceColors.CardBorderLight),
         )
         ScoreColumn(
@@ -187,7 +198,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
         Box(
             modifier = Modifier
                 .width(1.dp)
-                .height(36.dp)
+                .height(20.dp)
                 .background(ScoreTraceColors.CardBorderLight),
         )
         val diff = (targetSchool.targetScore - targetSchool.currentScore).coerceAtLeast(0)
@@ -198,7 +209,7 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
         )
     }
 
-    Spacer(modifier = Modifier.height(14.dp))
+    Spacer(modifier = Modifier.height(6.dp))
 
     // 达成率
     val rate = if (targetSchool.targetScore > 0) {
@@ -207,11 +218,17 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
         0f
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("达成率", fontSize = 13.sp, color = ScoreTraceColors.TextSecondaryLight)
+        Text(
+            text = "达成率",
+            fontSize = 13.sp,
+            lineHeight = 16.sp,
+            color = ScoreTraceColors.TextSecondaryLight,
+        )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = String.format(Locale.getDefault(), "%.1f%%", rate),
             fontSize = 14.sp,
+            lineHeight = 17.sp,
             fontWeight = FontWeight.Bold,
             color = ScoreTraceColors.BrandPrimary,
         )
@@ -220,15 +237,15 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(8.dp)
-            .clip(RoundedCornerShape(4.dp))
+            .height(5.dp)
+            .clip(RoundedCornerShape(3.dp))
             .background(ScoreTraceColors.CardBorderLight),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth((rate / 100f).coerceIn(0f, 1f))
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
                 .background(
                     Brush.horizontalGradient(
                         listOf(ScoreTraceColors.BrandPrimary, ScoreTraceColors.BrandPrimaryLight),
@@ -241,8 +258,19 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
 @Composable
 private fun ScoreColumn(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 12.sp, color = ScoreTraceColors.TextSecondaryLight)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            lineHeight = 14.sp,
+            color = ScoreTraceColors.TextSecondaryLight,
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = value,
+            fontSize = 17.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
     }
 }

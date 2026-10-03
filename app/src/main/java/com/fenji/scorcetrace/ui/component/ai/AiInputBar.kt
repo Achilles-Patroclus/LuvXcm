@@ -135,14 +135,5 @@ fun AiInputBar(
                 )
             }
         }
-
-        Text(
-            text = "AI生成内容仅供参考 · 支持拍照识别成绩单",
-            fontSize = 11.sp,
-            color = ScoreTraceColors.TextTertiaryLight,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(bottom = 8.dp),
-        )
     }
 }

@@ -1,16 +1,23 @@
 package com.fenji.scorcetrace.ui.music.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.data.player.TrackInfo
 import com.fenji.scorcetrace.ui.theme.Dimens
@@ -212,7 +221,7 @@ private fun SkipButton(
 /**
  * 曲目列表弹层（[ModalBottomSheet]）。
  *
- * 列出播放列表全部曲目，当前曲目以强调色高亮并标注「播放中」，点击即切换并关闭。
+ * 标题右侧显示曲目数量，当前曲目以强调色高亮 + 跳动音柱 + 「播放中」，项间 0.5dp 分隔线。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -227,21 +236,44 @@ fun MusicPlaylistSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = Dimens.CardCorner, topEnd = Dimens.CardCorner),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 4.dp)
+                    .width(32.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)),
+            )
+        },
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Dimens.PageHorizontal)
+                .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
-            Text(
-                text = "播放列表",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = Dimens.TightGap),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "播放列表",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${tracks.size} 首",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             tracks.forEachIndexed { index, track ->
                 PlaylistRow(
@@ -249,6 +281,12 @@ fun MusicPlaylistSheet(
                     selected = index == currentIndex,
                     onClick = { onSelect(index) },
                 )
+                if (index < tracks.size - 1) {
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                    )
+                }
             }
         }
     }
@@ -269,37 +307,47 @@ private fun PlaylistRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimens.SmallCorner))
+            .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = if (selected) {
-                rememberVectorPainter(Icons.Rounded.PlayArrow)
+        Box(
+            modifier = Modifier.size(20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                PlayingBarsAnimation()
             } else {
-                painterResource(R.drawable.ic_music_note)
-            },
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(22.dp),
-        )
+                Icon(
+                    painter = painterResource(R.drawable.ic_music_note),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = track.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                color = if (selected) {
+                    ScoreTraceColors.AccentCyan.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -308,10 +356,68 @@ private fun PlaylistRow(
         if (selected) {
             Text(
                 text = "播放中",
-                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.AccentCyan,
                 maxLines = 1,
             )
         }
+    }
+}
+
+/** 「播放中」的跳动音柱：三根青条各自反向缩放，比静态图标更有生命感。 */
+@Composable
+private fun PlayingBarsAnimation() {
+    val infiniteTransition = rememberInfiniteTransition(label = "playingBars")
+    val bar1Height by infiniteTransition.animateFloat(
+        initialValue = 4f,
+        targetValue = 12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar1",
+    )
+    val bar2Height by infiniteTransition.animateFloat(
+        initialValue = 8f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar2",
+    )
+    val bar3Height by infiniteTransition.animateFloat(
+        initialValue = 6f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar3",
+    )
+
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(bar1Height.dp)
+                .background(ScoreTraceColors.AccentCyan, RoundedCornerShape(1.dp)),
+        )
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(bar2Height.dp)
+                .background(ScoreTraceColors.AccentCyan, RoundedCornerShape(1.dp)),
+        )
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(bar3Height.dp)
+                .background(ScoreTraceColors.AccentCyan, RoundedCornerShape(1.dp)),
+        )
     }
 }

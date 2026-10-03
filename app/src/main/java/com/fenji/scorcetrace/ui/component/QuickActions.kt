@@ -57,8 +57,8 @@ private fun QuickActionItem(action: QuickAction) {
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .size(38.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(action.color.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -66,13 +66,13 @@ private fun QuickActionItem(action: QuickAction) {
                 painter = action.icon,
                 contentDescription = action.label,
                 tint = action.color,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
-        Spacer(modifier = Modifier.size(6.dp))
+        Spacer(modifier = Modifier.size(2.dp))
         Text(
             text = action.label,
-            fontSize = 12.sp,
+            fontSize = 9.sp,
             color = ScoreTraceColors.TextPrimaryLight,
         )
     }

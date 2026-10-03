@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** 循环模式的 UI 三态：关闭 / 列表循环 / 单曲循环。 */
+enum class RepeatMode { OFF, ALL, ONE }
+
 /**
  * 音乐播放器的状态层。
  *
@@ -51,6 +54,15 @@ class MusicPlayerViewModel @Inject constructor(
     private val _duration = MutableStateFlow(0L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
 
+    private val _repeatMode = MutableStateFlow(player.repeatMode.toUiRepeatMode())
+    val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+
+    private val _shuffleMode = MutableStateFlow(player.shuffleModeEnabled)
+    val shuffleMode: StateFlow<Boolean> = _shuffleMode.asStateFlow()
+
+    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
+    val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
@@ -63,6 +75,14 @@ class MusicPlayerViewModel @Inject constructor(
             _playbackPosition.value = 0L
             val total = player.duration
             _duration.value = if (total > 0L) total else 0L
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            _repeatMode.value = repeatMode.toUiRepeatMode()
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            _shuffleMode.value = shuffleModeEnabled
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -136,6 +156,32 @@ class MusicPlayerViewModel @Inject constructor(
         play()
     }
 
+    /** 拖动进度条跳转。立即回写一次进度，避免要等下一次轮询才有反馈。 */
+    fun seekTo(positionMs: Long) {
+        val target = positionMs.coerceAtLeast(0L)
+        player.seekTo(target)
+        _playbackPosition.value = target
+    }
+
+    /** 循环模式三态轮换：关闭 → 列表循环 → 单曲循环。 */
+    fun toggleRepeat() {
+        player.repeatMode = when (player.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+    }
+
+    fun toggleShuffle() {
+        player.shuffleModeEnabled = !player.shuffleModeEnabled
+    }
+
+    fun toggleFavorite(trackId: String) {
+        val current = _favorites.value.toMutableSet()
+        if (current.contains(trackId)) current.remove(trackId) else current.add(trackId)
+        _favorites.value = current
+    }
+
     /** 从播放列表直接选曲播放。 */
     fun playTrack(index: Int) {
         playerManager.setPlaylist(DEFAULT_PLAYLIST, index)
@@ -146,6 +192,12 @@ class MusicPlayerViewModel @Inject constructor(
         // 只摘掉自己的监听；播放器是应用级单例，绝不在这里释放
         player.removeListener(listener)
         super.onCleared()
+    }
+
+    private fun Int.toUiRepeatMode(): RepeatMode = when (this) {
+        Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+        Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+        else -> RepeatMode.OFF
     }
 
     private companion object {

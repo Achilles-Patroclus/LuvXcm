@@ -41,6 +41,9 @@ data class SubjectScore(
  * 左：六维雷达图
  * 右：六科进度条 + 百分比
  * 底部：总分·排名 + 较上次变化标签
+ *
+ * 各文本显式指定 lineHeight：真机系统字体是手写体、行高天然偏大，
+ * 不指定会把每一行都撑高、整卡偏高。
  */
 @Composable
 fun ScoreOverviewCard(
@@ -57,14 +60,15 @@ fun ScoreOverviewCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         // 标题行
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "成绩概览",
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                lineHeight = 19.sp,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -72,29 +76,34 @@ fun ScoreOverviewCard(
                 modifier = Modifier.clickable(onClick = onDetailClick),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("详情", fontSize = 14.sp, color = ScoreTraceColors.BrandPrimary)
+                Text(
+                    text = "详情",
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    color = ScoreTraceColors.BrandPrimary,
+                )
                 Icon(
                     painter = painterResource(R.drawable.ic_chevron_right),
                     contentDescription = null,
                     tint = ScoreTraceColors.BrandPrimary,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 雷达图 + 进度条
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadarChart(
                 labels = subjects.map { it.name },
                 values = subjects.map { it.rate },
-                modifier = Modifier.size(140.dp),
+                modifier = Modifier.size(88.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 subjects.forEach { subject ->
                     SubjectProgressRow(subject)
@@ -102,27 +111,28 @@ fun ScoreOverviewCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // 底部总分栏
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(ScoreTraceColors.PageBackgroundLight)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "总分 $totalScore · $rankText",
                 fontSize = 14.sp,
+                lineHeight = 17.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(5.dp))
                     .background(
                         if (deltaPositive) {
                             ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f)
@@ -134,7 +144,8 @@ fun ScoreOverviewCard(
             ) {
                 Text(
                     text = deltaText,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (deltaPositive) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
                 )
@@ -148,33 +159,35 @@ private fun SubjectProgressRow(subject: SubjectScore) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = subject.name,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
+            lineHeight = 17.sp,
             color = ScoreTraceColors.TextSecondaryLight,
             modifier = Modifier.width(32.dp),
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
                 .background(ScoreTraceColors.CardBorderLight),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(subject.rate.coerceIn(0f, 1f))
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
                     .background(subject.color),
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = "${(subject.rate * 100).toInt()}%",
-            fontSize = 13.sp,
+            fontSize = 14.sp,
+            lineHeight = 17.sp,
             fontWeight = FontWeight.Medium,
             color = subject.color,
-            modifier = Modifier.width(36.dp),
+            modifier = Modifier.width(34.dp),
         )
     }
 }
