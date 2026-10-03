@@ -4,7 +4,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scorcetrace.data.local.UserPreferences
+import com.fenji.scorcetrace.data.local.entity.ExamRecord
+import com.fenji.scorcetrace.data.local.entity.ScoreRecord
 import com.fenji.scorcetrace.data.local.entity.TargetSchool
+import com.fenji.scorcetrace.data.remote.deepseek.dto.ChatRequest
+import com.fenji.scorcetrace.data.repository.DeepSeekRepository
+import com.fenji.scorcetrace.data.repository.ExamRecordRepository
+import com.fenji.scorcetrace.data.repository.NotificationRepository
+import com.fenji.scorcetrace.data.repository.NotificationType
+import com.fenji.scorcetrace.data.repository.SchoolRepository
 import com.fenji.scorcetrace.data.repository.ScoreRecordRepository
 import com.fenji.scorcetrace.data.repository.SubjectRepository
 import com.fenji.scorcetrace.data.repository.TargetSchoolRepository
@@ -20,10 +28,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.util.Date
 import javax.inject.Inject
 
@@ -32,6 +42,14 @@ data class HomeUiState(
     val autoPlayMusic: Boolean = true,
     /** 最新设定的目标院校；null 表示尚未设定（首页显示引导态） */
     val targetSchool: TargetSchool? = null,
+    /** 目标院校校徽地址（按校名从 schools.json 反查）；未知院校为 null，UI 回退首字 */
+    val targetSchoolLogoUrl: String? = null,
+    /** 最近一次考试总分；null 表示暂无成绩 */
+    val latestTotalScore: Int? = null,
+    /** 班级排名文案（如「班级第15」）；无排名时为空串 */
+    val latestRankText: String = "",
+    /** 与上一次考试的总分差；null 表示无从计算 */
+    val scoreDelta: Int? = null,
     val isLoading: Boolean = true,
 )
 
@@ -47,10 +65,14 @@ data class CountdownUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    userPreferences: UserPreferences,
+    private val userPreferences: UserPreferences,
     private val targetSchoolRepository: TargetSchoolRepository,
     private val scoreRecordRepository: ScoreRecordRepository,
     private val subjectRepository: SubjectRepository,
+    private val schoolRepository: SchoolRepository,
+    private val examRecordRepository: ExamRecordRepository,
+    private val deepSeekRepository: DeepSeekRepository,
+    private val notificationRepository: NotificationRepository,
 ) : ViewModel() {
 
     /** 立即发射一次当前时间，之后每秒发射一次，驱动秒级倒计时 */
@@ -64,10 +86,17 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = combine(
         userPreferences.autoPlayMusic,
         targetSchoolRepository.observeLatest(),
-    ) { autoPlayMusic, targetSchool ->
+        scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
+        examRecordRepository.observeAll(),
+    ) { autoPlayMusic, targetSchool, scores, exams ->
+        val summary = summarizeScores(scores, exams)
         HomeUiState(
             autoPlayMusic = autoPlayMusic,
             targetSchool = targetSchool,
+            targetSchoolLogoUrl = targetSchool?.let { schoolRepository.findByName(it.schoolName)?.logoUrl },
+            latestTotalScore = summary.latestTotal,
+            latestRankText = summary.rankText,
+            scoreDelta = summary.delta,
             isLoading = false,
         )
     }.stateIn(
@@ -75,6 +104,14 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState(),
     )
+
+    /** 今日 AI 重点（每天生成一次，缓存到 DataStore） */
+    private val _aiFocus = MutableStateFlow(DEFAULT_AI_FOCUS)
+    val aiFocus: StateFlow<String> = _aiFocus.asStateFlow()
+
+    init {
+        viewModelScope.launch { loadOrGenerateAiFocus() }
+    }
 
     /** 目标时间戳来自 DataStore，变化后会自动重新计算倒计时 */
     val countdownState: StateFlow<CountdownUiState> = combine(
@@ -129,37 +166,80 @@ class HomeViewModel @Inject constructor(
         initialValue = SIX_SUBJECTS.map { SubjectScore(it, 0f, colorForSubject(it)) },
     )
 
-    /** 今日 AI 重点（本地占位文案池，后续接 AI 接口） */
-    private val _aiTip = MutableStateFlow(AI_TIPS.first())
-    val aiTip: StateFlow<String> = _aiTip.asStateFlow()
-
-    fun refreshAiTip() {
-        _aiTip.value = AI_TIPS.filter { it != _aiTip.value }.random()
+    fun deleteTargetSchool(entity: TargetSchool) {
+        viewModelScope.launch { targetSchoolRepository.delete(entity) }
     }
 
-    /** 保存目标院校：[id] 传已有值则覆盖同一条记录，传 0 为新增 */
-    fun saveTargetSchool(
-        schoolName: String,
-        majorName: String,
-        targetScore: Int,
-        currentScore: Int,
-        year: Int,
-        id: Long = 0L,
-    ) {
-        viewModelScope.launch {
-            targetSchoolRepository.save(
-                schoolName = schoolName,
-                majorName = majorName,
-                targetScore = targetScore,
-                currentScore = currentScore,
-                year = year,
-                id = id,
+    /**
+     * 今日 AI 重点：当天已生成则直接用缓存；否则调用 DeepSeek 依据最近成绩生成一条，
+     * 写入 DataStore 并生成一条「AI 建议」通知（当天只生成一次）。
+     */
+    private suspend fun loadOrGenerateAiFocus() {
+        val today = LocalDate.now().toString()
+        val cachedDate = userPreferences.aiFocusDate.first()
+        val cached = userPreferences.aiFocus.first()
+        if (cachedDate == today && !cached.isNullOrBlank()) {
+            _aiFocus.value = cached
+            return
+        }
+        val scoreSummary = buildScoreSummary()
+        val targetSchoolName = targetSchoolRepository.observeLatest().first()?.schoolName
+        val prompt = """
+            你是高考备考助手。根据以下最近成绩，给出一条今日学习重点建议（不超过 50 字）：
+            最近成绩：$scoreSummary
+            目标院校：${targetSchoolName ?: "未设定"}
+            要求：指出最需要提升的科目或知识点，给出具体、可执行的行动建议。
+        """.trimIndent()
+        val result = deepSeekRepository.chat(listOf(ChatRequest.Message(role = "user", content = prompt)))
+        val focus = result.getOrNull()
+            ?.choices?.firstOrNull()?.message?.content?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: cached?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_AI_FOCUS
+        _aiFocus.value = focus
+        userPreferences.saveAiFocus(focus, today)
+        if (result.isSuccess) {
+            notificationRepository.add(
+                type = NotificationType.AI,
+                title = "今日 AI 重点",
+                content = focus,
             )
         }
     }
 
-    fun deleteTargetSchool(entity: TargetSchool) {
-        viewModelScope.launch { targetSchoolRepository.delete(entity) }
+    /** 拼「最近一次考试」的成绩摘要，供 AI 生成建议使用。 */
+    private suspend fun buildScoreSummary(): String {
+        val records = scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT).first()
+        val subjects = subjectRepository.observeSubjects().first()
+        if (records.isEmpty()) return "暂无成绩数据"
+        val idToName = subjects.associate { it.id to it.name }
+        val latestName = records.maxByOrNull { it.examDate }?.examName
+        val latest = records.filter { it.examName == latestName }
+        val total = latest.sumOf { it.score }.toInt()
+        val detail = latest.joinToString("，") { "${idToName[it.subjectId].orEmpty()}${it.score.toInt()}" }
+        return "最近一次「$latestName」总分 $total（$detail）"
+    }
+
+    /** 把单科成绩按考试名聚合出总分/排名/较上次变化。 */
+    private fun summarizeScores(scores: List<ScoreRecord>, exams: List<ExamRecord>): ScoreSummary {
+        if (scores.isEmpty()) return ScoreSummary()
+        val byExam = scores.groupBy { it.examName }
+            .map { (name, records) ->
+                ExamAggregate(
+                    name = name,
+                    date = records.maxOf { it.examDate },
+                    total = records.sumOf { it.score }.toInt(),
+                )
+            }
+            .sortedByDescending { it.date }
+        val latest = byExam.first()
+        val previous = byExam.getOrNull(1)
+        val rank = exams.firstOrNull { it.examName == latest.name }?.classRank
+        return ScoreSummary(
+            latestTotal = latest.total,
+            rankText = rank?.let { "班级第$it" } ?: "",
+            delta = previous?.let { latest.total - it.total },
+        )
     }
 
     private fun calculateCountdown(targetTimestamp: Long, now: Long): CountdownUiState {
@@ -178,6 +258,14 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    private data class ExamAggregate(val name: String, val date: Date, val total: Int)
+
+    private data class ScoreSummary(
+        val latestTotal: Int? = null,
+        val rankText: String = "",
+        val delta: Int? = null,
+    )
+
     private companion object {
         const val MILLIS_PER_SECOND = 1_000L
         const val MILLIS_PER_MINUTE = 60_000L
@@ -185,6 +273,9 @@ class HomeViewModel @Inject constructor(
         const val MILLIS_PER_DAY = 86_400_000L
 
         const val HOME_RECENT_SCORE_LIMIT = 50
+        const val RECENT_SCORE_LIMIT = 200
+
+        const val DEFAULT_AI_FOCUS = "保持每日学习节奏，重点突破薄弱科目。"
 
         /** 成绩概览固定展示的六科 */
         val SIX_SUBJECTS = listOf("语文", "数学", "英语", "物理", "化学", "生物")
@@ -196,13 +287,5 @@ class HomeViewModel @Inject constructor(
             "化学" -> ScoreTraceColors.WarningOrange
             else -> ScoreTraceColors.SuccessGreen
         }
-
-        val AI_TIPS = listOf(
-            "数学三角函数失分最多，建议专项练 40 分钟。",
-            "英语阅读理解正确率下降，每天精读 2 篇。",
-            "物理电磁学公式不熟练，整理错题本复习。",
-            "化学方程式配平易错，做 15 道专项练习。",
-            "语文作文素材积累不足，每周摘抄 3 段。",
-        )
     }
 }

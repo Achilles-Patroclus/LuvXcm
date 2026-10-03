@@ -48,9 +48,12 @@ data class SubjectScore(
 @Composable
 fun ScoreOverviewCard(
     subjects: List<SubjectScore>,
-    totalScore: String,
+    /** 最近一次考试总分；null 表示暂无成绩 */
+    totalScore: String?,
+    /** 排名文案（如「班级第15」）；无排名时空串 */
     rankText: String,
-    deltaText: String,
+    /** 较上次变化文案；null 时隐藏 */
+    deltaText: String?,
     deltaPositive: Boolean,
     onDetailClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -123,32 +126,36 @@ fun ScoreOverviewCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "总分 $totalScore · $rankText",
+                text = totalScore?.let { score ->
+                    if (rankText.isNotBlank()) "总分 $score · $rankText" else "总分 $score"
+                } ?: "暂无成绩",
                 fontSize = 14.sp,
                 lineHeight = 17.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(
-                        if (deltaPositive) {
-                            ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f)
-                        } else {
-                            ScoreTraceColors.ErrorRed.copy(alpha = 0.12f)
-                        },
+            if (deltaText != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(
+                            if (deltaPositive) {
+                                ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f)
+                            } else {
+                                ScoreTraceColors.ErrorRed.copy(alpha = 0.12f)
+                            },
+                        )
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = deltaText,
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (deltaPositive) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
                     )
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    text = deltaText,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (deltaPositive) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
-                )
+                }
             }
         }
     }

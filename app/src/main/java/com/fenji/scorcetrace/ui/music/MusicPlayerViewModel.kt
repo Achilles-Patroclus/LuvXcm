@@ -30,7 +30,7 @@ class MusicPlayerViewModel @Inject constructor(
     private val playerManager: MusicPlayerManager,
 ) : ViewModel() {
 
-    val playlist: List<TrackInfo> = DEFAULT_PLAYLIST
+    val playlist: StateFlow<List<TrackInfo>> = playerManager.playlist
 
     private val player: Player get() = playerManager.exoPlayer
 
@@ -38,7 +38,9 @@ class MusicPlayerViewModel @Inject constructor(
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
 
     private val _currentTrack = MutableStateFlow(
-        DEFAULT_PLAYLIST.getOrElse(player.currentMediaItemIndex) { DEFAULT_PLAYLIST.first() },
+        playerManager.playlist.value.getOrElse(player.currentMediaItemIndex) {
+            playerManager.playlist.value.firstOrNull() ?: DEFAULT_PLAYLIST.first()
+        },
     )
     val currentTrack: StateFlow<TrackInfo> = _currentTrack.asStateFlow()
 
@@ -71,7 +73,7 @@ class MusicPlayerViewModel @Inject constructor(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val index = player.currentMediaItemIndex
             _currentIndex.value = index
-            _currentTrack.value = DEFAULT_PLAYLIST.getOrElse(index) { _currentTrack.value }
+            _currentTrack.value = playerManager.playlist.value.getOrElse(index) { _currentTrack.value }
             _playbackPosition.value = 0L
             val total = player.duration
             _duration.value = if (total > 0L) total else 0L
@@ -184,7 +186,9 @@ class MusicPlayerViewModel @Inject constructor(
 
     /** 从播放列表直接选曲播放。 */
     fun playTrack(index: Int) {
-        playerManager.setPlaylist(DEFAULT_PLAYLIST, index)
+        val tracks = playerManager.playlist.value
+        if (index !in tracks.indices) return
+        playerManager.setPlaylist(tracks, index)
         play()
     }
 

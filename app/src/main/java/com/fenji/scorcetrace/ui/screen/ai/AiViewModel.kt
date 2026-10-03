@@ -3,21 +3,32 @@ package com.fenji.scorcetrace.ui.screen.ai
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.fenji.scorcetrace.R
+import com.fenji.scorcetrace.data.remote.deepseek.dto.ChatRequest
+import com.fenji.scorcetrace.data.repository.DeepSeekRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** AI 助手页面的 UI 状态 */
+/** AI 助手页面的输入区状态 */
 data class AiUiState(
     /** 输入框文本 */
     val inputText: String = "",
-    /** 是否正在等待 AI 响应（欢迎态为 false，后续对话态用） */
-    val isLoading: Boolean = false,
     /** 当前选中的快捷问题（点击后填充到输入框） */
     val selectedQuickAction: String? = null,
+)
+
+/** 一条对话消息 */
+data class ChatMessage(
+    val id: Long,
+    val role: String,  // "user" / "assistant"
+    val content: String,
+    val isStreaming: Boolean = false,
 )
 
 /** 快捷入口定义 */
@@ -32,10 +43,24 @@ data class AiQuickAction(
 )
 
 @HiltViewModel
-class AiViewModel @Inject constructor() : ViewModel() {
+class AiViewModel @Inject constructor(
+    private val repository: DeepSeekRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AiUiState())
     val uiState: StateFlow<AiUiState> = _uiState.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private var nextMessageId = 0L
+    private var streamJob: Job? = null
 
     /** 六个快捷入口 */
     val quickActions: List<AiQuickAction> = listOf(
@@ -101,26 +126,100 @@ class AiViewModel @Inject constructor() : ViewModel() {
         )
     }
 
-    /** 发送消息：欢迎态下清空输入框（实际对话逻辑后续迭代） */
+    /** 发送输入框中的消息 */
     fun onSend() {
-        val text = _uiState.value.inputText.trim()
-        if (text.isEmpty()) return
-        _uiState.value = _uiState.value.copy(
-            inputText = "",
-            selectedQuickAction = null,
+        sendMessage(_uiState.value.inputText)
+    }
+
+    /** 发送一条消息：追加用户消息 + 空的 AI 消息，随后流式填充。 */
+    fun sendMessage(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || _isLoading.value) return
+
+        val userMessage = ChatMessage(id = nextMessageId++, role = "user", content = trimmed)
+        val assistantId = nextMessageId++
+        val assistantMessage = ChatMessage(
+            id = assistantId,
+            role = "assistant",
+            content = "",
+            isStreaming = true,
         )
+        _messages.value = _messages.value + userMessage + assistantMessage
+        _uiState.value = AiUiState()
+        _isLoading.value = true
+        _error.value = null
+
+        // 历史消息（不含正在流式填充的空 AI 消息，也不含系统提示词——仓库会补）
+        val history = _messages.value
+            .filter { !it.isStreaming }
+            .map { ChatRequest.Message(role = it.role, content = it.content) }
+
+        streamJob = viewModelScope.launch {
+            try {
+                repository.chatStream(history).collect { chunk ->
+                    if (chunk.isEmpty()) {
+                        finishStreaming(assistantId)
+                    } else {
+                        appendToMessage(assistantId, chunk)
+                    }
+                }
+                // 兜底：流正常结束但未收到 [DONE] 时确保收尾
+                finishStreaming(assistantId)
+            } catch (e: Exception) {
+                _error.value = e.message ?: "请求失败，请重试"
+                _messages.value = _messages.value.map {
+                    if (it.id == assistantId) {
+                        it.copy(
+                            content = if (it.content.isEmpty()) "[请求失败] ${e.message}" else it.content,
+                            isStreaming = false,
+                        )
+                    } else {
+                        it
+                    }
+                }
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /** 重试最后一条：丢弃该条用户消息之后的全部内容并重新发送。 */
+    fun retryLast() {
+        if (_isLoading.value) return
+        val lastUserIndex = _messages.value.indexOfLast { it.role == "user" }
+        if (lastUserIndex < 0) return
+        val lastUser = _messages.value[lastUserIndex]
+        _messages.value = _messages.value.take(lastUserIndex)
+        sendMessage(lastUser.content)
+    }
+
+    /** 新建对话：清空消息并中断进行中的流式请求。 */
+    fun onNewChat() {
+        streamJob?.cancel()
+        streamJob = null
+        _messages.value = emptyList()
+        _error.value = null
+        _isLoading.value = false
+        _uiState.value = AiUiState()
     }
 
     /** 点击加号（上传/拍照）：当前无操作，待接入拍照识别成绩单 */
     fun onAddClick() {
     }
 
-    /** 新建对话 */
-    fun onNewChat() {
-        _uiState.value = AiUiState()
-    }
-
     /** 历史记录 */
     fun onHistoryClick() {
+    }
+
+    private fun appendToMessage(id: Long, chunk: String) {
+        _messages.value = _messages.value.map {
+            if (it.id == id) it.copy(content = it.content + chunk) else it
+        }
+    }
+
+    private fun finishStreaming(id: Long) {
+        _messages.value = _messages.value.map {
+            if (it.id == id) it.copy(isStreaming = false) else it
+        }
+        _isLoading.value = false
     }
 }

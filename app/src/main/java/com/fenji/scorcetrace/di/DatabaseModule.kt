@@ -6,6 +6,8 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fenji.scorcetrace.data.local.ScoreTraceDatabase
+import com.fenji.scorcetrace.data.local.dao.ExamRecordDao
+import com.fenji.scorcetrace.data.local.dao.NotificationDao
 import com.fenji.scorcetrace.data.local.dao.ScoreRecordDao
 import com.fenji.scorcetrace.data.local.dao.StudyTaskDao
 import com.fenji.scorcetrace.data.local.dao.SubjectDao
@@ -55,11 +57,37 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * 新增考试记录表与通知表。
+     * 建表 SQL 与 Room 生成的 `exam_records` / `notifications` 语句逐字一致。
+     */
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `exam_records` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`examName` TEXT NOT NULL, " +
+                    "`examDate` INTEGER NOT NULL, " +
+                    "`classRank` INTEGER, " +
+                    "`gradeRank` INTEGER)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `notifications` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`type` TEXT NOT NULL, " +
+                    "`title` TEXT NOT NULL, " +
+                    "`content` TEXT NOT NULL, " +
+                    "`timestamp` INTEGER NOT NULL, " +
+                    "`isRead` INTEGER NOT NULL)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): ScoreTraceDatabase =
         Room.databaseBuilder(context, ScoreTraceDatabase::class.java, Constants.DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -85,6 +113,16 @@ object DatabaseModule {
     @Singleton
     fun provideTargetSchoolDao(database: ScoreTraceDatabase): TargetSchoolDao =
         database.targetSchoolDao()
+
+    @Provides
+    @Singleton
+    fun provideExamRecordDao(database: ScoreTraceDatabase): ExamRecordDao =
+        database.examRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideNotificationDao(database: ScoreTraceDatabase): NotificationDao =
+        database.notificationDao()
 
     /** 建库时写入默认科目，避免首屏空白 */
     private fun seedDefaultSubjects(db: SupportSQLiteDatabase) {

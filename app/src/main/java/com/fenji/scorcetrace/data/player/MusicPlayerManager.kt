@@ -7,6 +7,9 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
@@ -60,6 +63,10 @@ class MusicPlayerManager @Inject constructor(
     private var _exoPlayer: ExoPlayer? = null
     private var _audioCache: Cache? = null
 
+    /** 当前播放列表（可增删）；与播放器的 media items 保持一致 */
+    private val _playlist = MutableStateFlow(DEFAULT_PLAYLIST)
+    val playlist: StateFlow<List<TrackInfo>> = _playlist.asStateFlow()
+
     val exoPlayer: ExoPlayer
         get() {
             if (_exoPlayer == null) {
@@ -100,6 +107,7 @@ class MusicPlayerManager @Inject constructor(
 
     /** 载入播放列表并从 [startIndex] 开始（只 prepare，不自动播放，由调用方决定）。 */
     fun setPlaylist(tracks: List<TrackInfo>, startIndex: Int = 0) {
+        _playlist.value = tracks
         exoPlayer.setMediaItems(tracks.map { MediaItem.fromUri(it.url) }, startIndex, 0L)
         exoPlayer.prepare()
     }

@@ -46,7 +46,9 @@ fun AiInputBar(
     onSend: () -> Unit,
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
 ) {
+    val isSendEnabled = inputText.isNotBlank() && !isLoading
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -123,8 +125,19 @@ fun AiInputBar(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(ScoreTraceColors.BrandGradient))
-                    .clickable(onClick = onSend),
+                    .background(
+                        if (isSendEnabled) {
+                            Brush.linearGradient(ScoreTraceColors.BrandGradient)
+                        } else {
+                            Brush.linearGradient(
+                                listOf(
+                                    Color.Gray.copy(alpha = 0.3f),
+                                    Color.Gray.copy(alpha = 0.3f),
+                                ),
+                            )
+                        },
+                    )
+                    .clickable(enabled = isSendEnabled, onClick = onSend),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

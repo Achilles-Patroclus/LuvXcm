@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,15 +19,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.data.local.entity.TargetSchool
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
@@ -45,6 +53,7 @@ import java.util.Locale
 @Composable
 fun TargetSchoolCardNew(
     targetSchool: TargetSchool?,
+    logoUrl: String?,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -65,7 +74,7 @@ fun TargetSchoolCardNew(
         if (targetSchool == null) {
             TargetSchoolEmptyContent()
         } else {
-            TargetSchoolContent(targetSchool)
+            TargetSchoolContent(targetSchool, logoUrl)
         }
     }
 }
@@ -108,28 +117,10 @@ private fun TargetSchoolEmptyContent() {
 }
 
 @Composable
-private fun TargetSchoolContent(targetSchool: TargetSchool) {
+private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?) {
     // 顶部行：校徽 + 学校信息 + 箭头
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(ScoreTraceColors.SchoolPurple, ScoreTraceColors.SchoolPurpleLight),
-                    ),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = targetSchool.schoolName.take(1),
-                fontSize = 17.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
-        }
+        SchoolLogoBlock(schoolName = targetSchool.schoolName, logoUrl = logoUrl)
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -252,6 +243,42 @@ private fun TargetSchoolContent(targetSchool: TargetSchool) {
                     ),
                 ),
         )
+    }
+}
+
+/** 校徽：在线加载，失败（无网络 / 无图）时回退为院校首字渐变块。 */
+@Composable
+private fun SchoolLogoBlock(schoolName: String, logoUrl: String?) {
+    var failed by remember(schoolName) { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(ScoreTraceColors.SchoolPurple, ScoreTraceColors.SchoolPurpleLight),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (logoUrl.isNullOrBlank() || failed) {
+            Text(
+                text = schoolName.take(1),
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+        } else {
+            AsyncImage(
+                model = logoUrl,
+                contentDescription = schoolName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onState = { state -> if (state is AsyncImagePainter.State.Error) failed = true },
+            )
+        }
     }
 }
 

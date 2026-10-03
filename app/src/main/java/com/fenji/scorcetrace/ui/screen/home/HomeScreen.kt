@@ -54,7 +54,6 @@ import com.fenji.scorcetrace.ui.component.QuickActions
 import com.fenji.scorcetrace.ui.component.ScoreOverviewCard
 import com.fenji.scorcetrace.ui.component.SubjectScore
 import com.fenji.scorcetrace.ui.component.TargetSchoolCardNew
-import com.fenji.scorcetrace.ui.component.TargetSchoolEditorSheet
 import com.fenji.scorcetrace.ui.music.MusicPlayerViewModel
 import com.fenji.scorcetrace.ui.music.component.MusicFloatingPanel
 import com.fenji.scorcetrace.ui.music.component.MusicPlaylistSheet
@@ -68,27 +67,30 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     musicViewModel: MusicPlayerViewModel,
+    showMusicPanel: Boolean,
+    onMusicPanelChange: (Boolean) -> Unit,
     bottomContentPadding: Dp = Dimens.ContentBottom,
-    onOpenPlan: () -> Unit = {},
     onOpenScore: () -> Unit = {},
+    onOpenTargetSchool: () -> Unit = {},
+    onOpenAiScore: () -> Unit = {},
+    onOpenNotification: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 只持有 State 对象、不在函数体读值：倒计时每秒 tick 不会重组整页
     val countdown = viewModel.countdownState.collectAsStateWithLifecycle()
     val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
+    val playlist by musicViewModel.playlist.collectAsStateWithLifecycle()
     val currentTrackIndex by musicViewModel.currentIndex.collectAsStateWithLifecycle()
     val subjectRates by viewModel.subjectRates.collectAsStateWithLifecycle()
-    val aiTip by viewModel.aiTip.collectAsStateWithLifecycle()
+    val aiFocus by viewModel.aiFocus.collectAsStateWithLifecycle()
     val studyDay by viewModel.studyDayCount.collectAsStateWithLifecycle()
 
-    var showTargetEditor by rememberSaveable { mutableStateOf(false) }
     var showTargetDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showPlaylist by rememberSaveable { mutableStateOf(false) }
-    var showMusicPanel by rememberSaveable { mutableStateOf(false) }
 
     // 返回键优先关面板，而不是退出应用（AppNavHost 的返回处理在面板关闭后才生效）
-    BackHandler(enabled = showMusicPanel) { showMusicPanel = false }
+    BackHandler(enabled = showMusicPanel) { onMusicPanelChange(false) }
 
     // 每次进入 App 只触发一次自动播放；切回首页不再 play()，所以不会打断正在播放的音乐
     LaunchedEffect(Unit) {
@@ -121,7 +123,7 @@ fun HomeScreen(
             onToggleRepeat = musicViewModel::toggleRepeat,
             onToggleShuffle = musicViewModel::toggleShuffle,
             onToggleFavorite = { musicViewModel.toggleFavorite(track.id) },
-            onDismiss = { showMusicPanel = false },
+            onDismiss = { onMusicPanelChange(false) },
             onOpenPlaylist = { showPlaylist = true },
         )
     }
@@ -132,38 +134,18 @@ fun HomeScreen(
         isPlaying = isPlaying,
         studyDay = studyDay,
         subjectRates = subjectRates,
-        aiTip = aiTip,
+        aiFocus = aiFocus,
         bottomContentPadding = bottomContentPadding,
         showMusicPanel = showMusicPanel,
         musicPanel = musicPanel,
-        onTargetClick = { showTargetEditor = true },
+        onTargetClick = onOpenTargetSchool,
         onTargetLongClick = { showTargetDeleteDialog = true },
-        onMusicClick = { showMusicPanel = !showMusicPanel },
-        onDismissMusicPanel = { showMusicPanel = false },
-        onNotificationClick = {},
+        onMusicClick = { onMusicPanelChange(!showMusicPanel) },
+        onDismissMusicPanel = { onMusicPanelChange(false) },
+        onNotificationClick = onOpenNotification,
         onDetailClick = onOpenScore,
-        onRefreshAiTip = viewModel::refreshAiTip,
-        onOpenPlan = onOpenPlan,
+        onOpenAiScore = onOpenAiScore,
     )
-
-    if (showTargetEditor) {
-        TargetSchoolEditorSheet(
-            initial = state.targetSchool,
-            onDismiss = { showTargetEditor = false },
-            onSave = { schoolName, majorName, targetScore, currentScore, year ->
-                viewModel.saveTargetSchool(
-                    schoolName = schoolName,
-                    majorName = majorName,
-                    targetScore = targetScore,
-                    currentScore = currentScore,
-                    year = year,
-                    // 已有记录时带上原 id 覆盖，保证始终只有一条目标
-                    id = state.targetSchool?.id ?: 0L,
-                )
-                showTargetEditor = false
-            },
-        )
-    }
 
     val targetSchoolToDelete = state.targetSchool
     if (showTargetDeleteDialog && targetSchoolToDelete != null) {
@@ -189,7 +171,7 @@ fun HomeScreen(
 
     if (showPlaylist) {
         MusicPlaylistSheet(
-            tracks = musicViewModel.playlist,
+            tracks = playlist,
             currentIndex = currentTrackIndex,
             onSelect = { index ->
                 musicViewModel.playTrack(index)
@@ -273,7 +255,7 @@ private fun HomeScreenContent(
     isPlaying: Boolean,
     studyDay: Int,
     subjectRates: List<SubjectScore>,
-    aiTip: String,
+    aiFocus: String,
     bottomContentPadding: Dp,
     showMusicPanel: Boolean,
     musicPanel: @Composable () -> Unit,
@@ -283,8 +265,7 @@ private fun HomeScreenContent(
     onDismissMusicPanel: () -> Unit,
     onNotificationClick: () -> Unit,
     onDetailClick: () -> Unit,
-    onRefreshAiTip: () -> Unit,
-    onOpenPlan: () -> Unit,
+    onOpenAiScore: () -> Unit,
 ) {
     val yearPassedPercent = rememberYearPassedPercent()
 
@@ -328,6 +309,7 @@ private fun HomeScreenContent(
                 // 目标院校卡
                 TargetSchoolCardNew(
                     targetSchool = state.targetSchool,
+                    logoUrl = state.targetSchoolLogoUrl,
                     onClick = onTargetClick,
                     onLongClick = onTargetLongClick,
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -335,14 +317,14 @@ private fun HomeScreenContent(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 成绩概览卡
+                // 成绩概览卡（总分/排名/较上次变化均从数据库动态获取）
+                val delta = state.scoreDelta
                 ScoreOverviewCard(
                     subjects = subjectRates,
-                    // TODO: 总分/排名/较上次变化需从成绩汇总实体获取，当前为硬编码占位（数据模型暂无排名字段）
-                    totalScore = "562",
-                    rankText = "班级第15",
-                    deltaText = "较上次 ↑12 分",
-                    deltaPositive = true,
+                    totalScore = state.latestTotalScore?.toString(),
+                    rankText = state.latestRankText,
+                    deltaText = delta?.takeIf { it != 0 }?.let { "较上次 ${if (it > 0) "↑" else "↓"}${kotlin.math.abs(it)} 分" },
+                    deltaPositive = (delta ?: 0) >= 0,
                     onDetailClick = onDetailClick,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
@@ -352,8 +334,7 @@ private fun HomeScreenContent(
                 // AI 重点卡
                 AiFocusCard(
                     title = "今日 AI 重点",
-                    content = aiTip,
-                    onRefresh = onRefreshAiTip,
+                    content = aiFocus,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
 
@@ -374,7 +355,8 @@ private fun HomeScreenContent(
                             label = "AI录成绩",
                             icon = painterResource(R.drawable.ic_photo_camera),
                             color = ScoreTraceColors.QuickActionBlue,
-                        ) {},
+                            onClick = onOpenAiScore,
+                        ),
                         QuickAction(
                             label = "学习计时器",
                             icon = painterResource(R.drawable.ic_timer),
@@ -385,12 +367,6 @@ private fun HomeScreenContent(
                             icon = painterResource(R.drawable.ic_book),
                             color = ScoreTraceColors.QuickActionOrange,
                         ) {},
-                        QuickAction(
-                            label = "学习计划",
-                            icon = painterResource(R.drawable.ic_calendar_month),
-                            color = ScoreTraceColors.QuickActionPurple,
-                            onClick = onOpenPlan,
-                        ),
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )

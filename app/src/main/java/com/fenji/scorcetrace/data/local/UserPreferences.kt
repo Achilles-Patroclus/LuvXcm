@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fenji.scorcetrace.util.DateUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -55,9 +56,45 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /** 用户选科（3+1+2），逗号分隔存库；未设置时默认「物理,化学,生物」 */
+    val selectedSubjects: Flow<List<String>> = context.dataStore.data.map { preferences ->
+        (preferences[KEY_SELECTED_SUBJECTS] ?: DEFAULT_SELECTED_SUBJECTS)
+            .split(SUBJECT_SEPARATOR)
+            .filter { it.isNotBlank() }
+    }
+
+    suspend fun setSelectedSubjects(subjects: List<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_SELECTED_SUBJECTS] = subjects.joinToString(SUBJECT_SEPARATOR)
+        }
+    }
+
+    /** 今日 AI 重点文案（缓存，当天只生成一次） */
+    val aiFocus: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AI_FOCUS]
+    }
+
+    /** 今日 AI 重点的生成日期（yyyy-MM-dd） */
+    val aiFocusDate: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AI_FOCUS_DATE]
+    }
+
+    suspend fun saveAiFocus(text: String, date: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_AI_FOCUS] = text
+            preferences[KEY_AI_FOCUS_DATE] = date
+        }
+    }
+
     private companion object {
         val KEY_GAOKAO_TIMESTAMP = longPreferencesKey("gaokao_timestamp")
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")
         val KEY_DARK_THEME = booleanPreferencesKey("dark_theme")
+        val KEY_SELECTED_SUBJECTS = stringPreferencesKey("selected_subjects")
+        val KEY_AI_FOCUS = stringPreferencesKey("ai_focus")
+        val KEY_AI_FOCUS_DATE = stringPreferencesKey("ai_focus_date")
+
+        const val SUBJECT_SEPARATOR = ","
+        const val DEFAULT_SELECTED_SUBJECTS = "物理,化学,生物"
     }
 }

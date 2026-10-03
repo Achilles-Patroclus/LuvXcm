@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,13 +50,13 @@ private val MusicSky = Color(0xFF0EA5E9)
  */
 @Composable
 fun MineScreen(
+    onOpenTargetSchool: () -> Unit = {},
     viewModel: MineViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val networkIp by viewModel.networkIp.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -86,7 +85,7 @@ fun MineScreen(
                     iconBgColor = ScoreTraceColors.BrandPrimary,
                     title = "目标院校",
                     value = state.targetSchool.ifBlank { "未设置" },
-                    onClick = { /* TODO 目标院校编辑 */ },
+                    onClick = onOpenTargetSchool,
                 )
                 SettingDivider()
                 SettingNavigateItem(
@@ -152,7 +151,7 @@ fun MineScreen(
                                 ClipEntry(ClipData.newPlainText(null, networkIp))
                             )
                         }
-                        AppToast.success(context, "已复制")
+                        AppToast.success("已复制")
                     },
                 )
                 SettingDivider()

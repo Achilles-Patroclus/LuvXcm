@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -249,93 +252,139 @@ fun MusicPlaylistSheet(
             )
         },
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 标题栏：名称 + 数量
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "播放列表",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "${tracks.size} 首",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+            )
 
-            tracks.forEachIndexed { index, track ->
-                PlaylistRow(
-                    track = track,
-                    selected = index == currentIndex,
-                    onClick = { onSelect(index) },
-                )
-                if (index < tracks.size - 1) {
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+            if (tracks.isEmpty()) {
+                // 空状态
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_music_note),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(44.dp),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "播放列表为空",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp),
+                ) {
+                    itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
+                        PlaylistItem(
+                            track = track,
+                            index = index,
+                            isPlaying = index == currentIndex,
+                            onClick = { onSelect(index) },
+                        )
+                        if (index < tracks.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 16.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                            )
+                        }
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
+/** 单条播放列表项：序号/播放中音柱 + 封面 + 歌名歌手。 */
 @Composable
-private fun PlaylistRow(
+private fun PlaylistItem(
     track: TrackInfo,
-    selected: Boolean,
+    index: Int,
+    isPlaying: Boolean,
     onClick: () -> Unit,
 ) {
-    val contentColor = if (selected) {
-        ScoreTraceColors.AccentCyan
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val titleColor = if (isPlaying) ScoreTraceColors.AccentCyan else MaterialTheme.colorScheme.onSurface
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier.size(20.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
+        // 左侧：序号，播放中则换成跳动音柱
+        Box(modifier = Modifier.width(24.dp), contentAlignment = Alignment.Center) {
+            if (isPlaying) {
                 PlayingBarsAnimation()
             } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_music_note),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                Text(
+                    text = "${index + 1}",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
         Spacer(modifier = Modifier.width(10.dp))
 
+        // 封面（无封面图，用品牌渐变 + 音符）
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Brush.linearGradient(ScoreTraceColors.CoverGradient)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_music_note),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                fontSize = 14.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = contentColor,
+                fontSize = 15.sp,
+                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -343,17 +392,14 @@ private fun PlaylistRow(
             Text(
                 text = track.artist,
                 fontSize = 11.sp,
-                color = if (selected) {
-                    ScoreTraceColors.AccentCyan.copy(alpha = 0.7f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
 
-        if (selected) {
+        if (isPlaying) {
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "播放中",
                 fontSize = 11.sp,

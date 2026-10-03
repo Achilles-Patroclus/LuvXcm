@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -21,6 +23,15 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // DeepSeek API Key 从 local.properties 读取（该文件已被 .gitignore 忽略，不入库）
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+        val deepseekApiKey = localProperties.getProperty("deepseek.api.key", "")
+        buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
     }
 
     buildTypes {
@@ -109,6 +120,9 @@ dependencies {
 
     // 协程
     implementation(libs.kotlinx.coroutines.android)
+
+    // 图片加载（院校校徽）
+    implementation(libs.coil.compose)
 
     // 液体玻璃：KernelSU 同款悬浮底栏（miuix-blur）
     implementation(libs.miuix.blur)

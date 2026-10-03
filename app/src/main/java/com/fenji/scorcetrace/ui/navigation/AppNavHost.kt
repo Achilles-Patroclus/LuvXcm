@@ -3,27 +3,51 @@ package com.fenji.scorcetrace.ui.navigation
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarData
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -38,7 +62,9 @@ import com.fenji.scorcetrace.ui.music.MusicPlayerViewModel
 import com.fenji.scorcetrace.ui.screen.ai.AiScreen
 import com.fenji.scorcetrace.ui.screen.home.HomeScreen
 import com.fenji.scorcetrace.ui.screen.mine.MineScreen
-import com.fenji.scorcetrace.ui.screen.plan.PlanScreen
+import com.fenji.scorcetrace.ui.screen.notification.NotificationScreen
+import com.fenji.scorcetrace.ui.screen.school.TargetSchoolScreen
+import com.fenji.scorcetrace.ui.screen.score.AiScoreInputScreen
 import com.fenji.scorcetrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scorcetrace.ui.screen.score.ScoreScreenNew
 import com.fenji.scorcetrace.ui.screen.settings.SettingsScreen
@@ -48,8 +74,8 @@ import com.fenji.scorcetrace.util.AppToast
  * 顶层导航。音乐播放器的 ViewModel 在这一层获取——它的 ViewModelStoreOwner 是 Activity，
  * 因此切底部 Tab 不会把它销毁，音乐也就不会被中断。
  *
- * 底栏为普通浅色底栏（[LightBottomBar]）；Scaffold 用 `contentWindowInsets = WindowInsets.statusBars`
- * 处理顶部状态栏，底栏高度通过 `innerPadding` 自动从内容区扣除，底栏自身用 `navigationBarsPadding()` 避让手势条。
+ * 过渡动画：底部 Tab 之间用淡入淡出（[tabEnter]/[tabExit]），二级页面用水平滑动（NavHost 默认）。
+ * 根 Scaffold 同时承载全局 Snackbar（[AppToast] 的宿主）。
  */
 @Composable
 fun AppNavHost(
@@ -58,8 +84,16 @@ fun AppNavHost(
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    // 成绩详情为全屏页（设计稿无底部导航栏），仅在详情路由隐藏底栏
-    val isDetailRoute = currentRoute?.startsWith("score_detail") == true
+    // 首页悬浮音乐面板状态提升到此处：点击任意底部 Tab 时一并收起（面板是跨 Tab 的全局浮层）
+    var showMusicPanel by rememberSaveable { mutableStateOf(false) }
+    // 全屏页（设计稿无底部导航栏）：成绩详情、目标院校、AI录成绩、通知中心均隐藏底栏
+    val hideBottomBar = currentRoute?.startsWith("score_detail") == true ||
+        currentRoute == Screen.TargetSchool.route ||
+        currentRoute == Screen.AiScoreInput.route ||
+        currentRoute == Screen.Notifications.route
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(snackbarHostState) { AppToast.attach(snackbarHostState) }
 
     val tabs = listOf(
         BottomBarTab(Screen.Home, R.string.tab_home, rememberVectorPainter(Icons.Filled.Home)),
@@ -68,8 +102,7 @@ fun AppNavHost(
         BottomBarTab(Screen.Mine, R.string.tab_mine, rememberVectorPainter(Icons.Filled.Person)),
     )
 
-    // 返回键：四个底部 Tab 上连按两次退出应用；其余子页面（成绩详情/学习计划/设置）返回上一页。
-    // 用当前路由判定层级，避免依赖子页面的具体 route 前缀。
+    // 返回键：四个底部 Tab 上连按两次退出应用；其余子页面（成绩详情/目标院校/设置等）返回上一页。
     val topLevelRoutes = listOf(Screen.Home.route, Screen.AI.route, Screen.Score.route, Screen.Mine.route)
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
     val context = LocalContext.current
@@ -80,7 +113,7 @@ fun AppNavHost(
                 (context as? Activity)?.finish()
             } else {
                 lastBackPressTime = now
-                AppToast.info(context, "再按一次退出应用")
+                AppToast.info("再按一次退出应用")
             }
         } else {
             navController.popBackStack()
@@ -89,12 +122,19 @@ fun AppNavHost(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data -> AppSnackbar(data) }
+        },
         bottomBar = {
-            if (!isDetailRoute) {
+            if (!hideBottomBar) {
                 LightBottomBar(
                     tabs = tabs,
                     currentRoute = currentRoute,
-                    onSelect = { navController.navigateToTab(it) },
+                    onSelect = {
+                        // 切 Tab 前先收起音乐面板
+                        showMusicPanel = false
+                        navController.navigateToTab(it)
+                    },
                 )
             }
         },
@@ -132,15 +172,38 @@ fun AppNavHost(
                 ) + fadeOut(animationSpec = tween(280))
             },
         ) {
-            composable(Screen.Home.route) {
+            // 四个底部 Tab 用淡入淡出，避免水平滑动在平级切换时的突兀感
+            composable(
+                route = Screen.Home.route,
+                enterTransition = { tabEnter() },
+                exitTransition = { tabExit() },
+                popEnterTransition = { tabEnter() },
+                popExitTransition = { tabExit() },
+            ) {
                 HomeScreen(
                     musicViewModel = musicViewModel,
-                    onOpenPlan = { navController.navigate(Screen.Plan.route) },
+                    showMusicPanel = showMusicPanel,
+                    onMusicPanelChange = { showMusicPanel = it },
                     onOpenScore = { navController.navigateToTab(Screen.Score) },
+                    onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
+                    onOpenAiScore = { navController.navigate(Screen.AiScoreInput.route) },
+                    onOpenNotification = { navController.navigate(Screen.Notifications.route) },
                 )
             }
-            composable(Screen.AI.route) { AiScreen() }
-            composable(Screen.Score.route) {
+            composable(
+                route = Screen.AI.route,
+                enterTransition = { tabEnter() },
+                exitTransition = { tabExit() },
+                popEnterTransition = { tabEnter() },
+                popExitTransition = { tabExit() },
+            ) { AiScreen() }
+            composable(
+                route = Screen.Score.route,
+                enterTransition = { tabEnter() },
+                exitTransition = { tabExit() },
+                popEnterTransition = { tabEnter() },
+                popExitTransition = { tabExit() },
+            ) {
                 ScoreScreenNew(
                     onOpenAi = { navController.navigateToTab(Screen.AI) },
                     onOpenDetail = { examId ->
@@ -156,8 +219,32 @@ fun AppNavHost(
             ) {
                 ScoreDetailScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.Mine.route) { MineScreen() }
-            composable(Screen.Plan.route) { PlanScreen() }
+            composable(
+                route = Screen.Mine.route,
+                enterTransition = { tabEnter() },
+                exitTransition = { tabExit() },
+                popEnterTransition = { tabEnter() },
+                popExitTransition = { tabExit() },
+            ) {
+                MineScreen(
+                    onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
+                )
+            }
+            composable(Screen.TargetSchool.route) {
+                TargetSchoolScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
+            composable(Screen.AiScoreInput.route) {
+                AiScoreInputScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
+            composable(Screen.Notifications.route) {
+                NotificationScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Settings.route) { SettingsScreen() }
         }
     }
@@ -169,5 +256,43 @@ private fun NavHostController.navigateToTab(screen: Screen) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+/** Tab 进入：淡入 200ms（无位移，符合平级切换直觉）。 */
+private fun tabEnter(): EnterTransition = fadeIn(animationSpec = tween(200))
+
+/** Tab 退出：淡出 200ms。 */
+private fun tabExit(): ExitTransition = fadeOut(animationSpec = tween(200))
+
+/** 全局 Snackbar：深灰底、白字、16dp 圆角，按 ✓ / ✕ 前缀显示成功/错误图标。 */
+@Composable
+private fun AppSnackbar(data: SnackbarData) {
+    val message = data.visuals.message
+    val (icon, tint) = when {
+        message.startsWith(AppToast.SUCCESS_PREFIX) -> Icons.Rounded.CheckCircle to Color(0xFF10B981)
+        message.startsWith(AppToast.ERROR_PREFIX) -> Icons.Rounded.Close to Color(0xFFEF4444)
+        else -> Icons.Rounded.Info to Color(0xFF36D1DC)
+    }
+    val text = message
+        .removePrefix("${AppToast.SUCCESS_PREFIX} ")
+        .removePrefix("${AppToast.ERROR_PREFIX} ")
+
+    Snackbar(
+        modifier = Modifier.padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        containerColor = Color(0xFF1F2937),
+        contentColor = Color.White,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = text, fontSize = 14.sp, fontWeight = FontWeight.Normal)
+        }
     }
 }
