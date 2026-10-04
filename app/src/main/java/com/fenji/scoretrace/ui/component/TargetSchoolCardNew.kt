@@ -40,9 +40,12 @@ import com.fenji.scoretrace.data.local.entity.TargetSchool
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import java.util.Locale
 
+/** 层次标签展示优先级：联盟/工程标签优先于泛双一流 */
+private val TAG_PRIORITY = listOf("C9", "985", "211", "双一流")
+
 /**
  * 目标院校卡（设计稿版）。
- * 顶部：紫色渐变校徽方块 + 学校名 + 985 标签 + 专业 + 右箭头
+ * 顶部：紫色渐变校徽方块 + 学校名 + 层次标签 + 专业 + 右箭头
  * 中部：三列分数（目标分/当前分/还差）
  * 底部：达成率进度条 + 百分比
  *
@@ -54,6 +57,8 @@ import java.util.Locale
 fun TargetSchoolCardNew(
     targetSchool: TargetSchool?,
     logoUrl: String?,
+    /** 层次标签（C9/985/211/双一流…）；空列表时不渲染标签胶囊 */
+    tags: List<String> = emptyList(),
     /** 当前分：取最近一次考试总分，随新成绩导入实时更新；无成绩时回退到录入时的快照 */
     currentScore: Int,
     onClick: () -> Unit,
@@ -76,7 +81,7 @@ fun TargetSchoolCardNew(
         if (targetSchool == null) {
             TargetSchoolEmptyContent()
         } else {
-            TargetSchoolContent(targetSchool, logoUrl, currentScore)
+            TargetSchoolContent(targetSchool, logoUrl, tags, currentScore)
         }
     }
 }
@@ -119,7 +124,12 @@ private fun TargetSchoolEmptyContent() {
 }
 
 @Composable
-private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?, currentScore: Int) {
+private fun TargetSchoolContent(
+    targetSchool: TargetSchool,
+    logoUrl: String?,
+    tags: List<String>,
+    currentScore: Int,
+) {
     // 顶部行：校徽 + 学校信息 + 箭头
     Row(verticalAlignment = Alignment.CenterVertically) {
         SchoolLogoBlock(schoolName = targetSchool.schoolName, logoUrl = logoUrl)
@@ -133,21 +143,23 @@ private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?, cu
                     lineHeight = 20.sp,
                     color = ScoreTraceColors.TextPrimaryLight,
                 )
-                Spacer(modifier = Modifier.width(5.dp))
-                // TODO: 985/211 标签需从 TargetSchool.tag 字段获取，当前硬编码（避免数据库迁移）
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.12f))
-                        .padding(horizontal = 3.dp, vertical = 1.dp),
-                ) {
-                    Text(
-                        text = "985",
-                        fontSize = 10.sp,
-                        lineHeight = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = ScoreTraceColors.SchoolPurple,
-                    )
+                val displayTag = tags.firstOrNull { it in TAG_PRIORITY } ?: tags.firstOrNull()
+                if (displayTag != null) {
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.12f))
+                            .padding(horizontal = 3.dp, vertical = 1.dp),
+                    ) {
+                        Text(
+                            text = displayTag,
+                            fontSize = 10.sp,
+                            lineHeight = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = ScoreTraceColors.SchoolPurple,
+                        )
+                    }
                 }
             }
             Text(

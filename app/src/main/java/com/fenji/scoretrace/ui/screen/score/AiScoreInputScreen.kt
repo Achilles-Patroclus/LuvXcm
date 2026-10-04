@@ -39,12 +39,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.AppToast
 import com.fenji.scoretrace.util.DateUtils
 import java.util.Date
 
@@ -96,7 +99,28 @@ fun AiScoreInputScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 SectionCard {
-                    Text("考试信息", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("考试信息", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.12f))
+                                .clickable { AppToast.info("拍照/相册功能即将支持") },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_photo_camera),
+                                contentDescription = "拍照或从相册选择",
+                                tint = ScoreTraceColors.BrandPrimary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = examName,

@@ -59,6 +59,7 @@ import com.fenji.scoretrace.ui.music.component.MusicFloatingPanel
 import com.fenji.scoretrace.ui.music.component.MusicPlaylistSheet
 import com.fenji.scoretrace.ui.theme.Dimens
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.AppToast
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -83,6 +84,7 @@ fun HomeScreen(
     val subjectRates by viewModel.subjectRates.collectAsStateWithLifecycle()
     val aiFocus by viewModel.aiFocus.collectAsStateWithLifecycle()
     val studyDay by viewModel.studyDayCount.collectAsStateWithLifecycle()
+    val greeting by viewModel.greeting.collectAsStateWithLifecycle()
     val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
     val yearPassedPercent by viewModel.yearPassedPercent.collectAsStateWithLifecycle()
 
@@ -133,6 +135,7 @@ fun HomeScreen(
         countdown = countdown,
         isPlaying = isPlaying,
         studyDay = studyDay,
+        greeting = greeting,
         subjectRates = subjectRates,
         aiFocus = aiFocus,
         unreadCount = unreadCount,
@@ -256,6 +259,7 @@ private fun HomeScreenContent(
     countdown: State<CountdownUiState>,
     isPlaying: Boolean,
     studyDay: Int,
+    greeting: String,
     subjectRates: List<SubjectScore>,
     aiFocus: String,
     unreadCount: Int,
@@ -278,7 +282,7 @@ private fun HomeScreenContent(
     ) {
         // 1. 顶部标题栏（固定在滚动区之外，滚动时不跟随内容移动）
         HomeTopBar(
-            subtitle = "早上好，备考第 $studyDay 天",
+            subtitle = "$greeting，备考第 $studyDay 天",
             isMusicPlaying = isPlaying,
             unreadCount = unreadCount,
             onMusicClick = onMusicClick,
@@ -313,6 +317,7 @@ private fun HomeScreenContent(
                 TargetSchoolCardNew(
                     targetSchool = state.targetSchool,
                     logoUrl = state.targetSchoolLogoUrl,
+                    tags = state.targetSchoolTags,
                     currentScore = state.latestTotalScore ?: state.targetSchool?.currentScore ?: 0,
                     onClick = onTargetClick,
                     onLongClick = onTargetLongClick,
@@ -366,12 +371,7 @@ private fun HomeScreenContent(
                             label = "学习计时器",
                             icon = painterResource(R.drawable.ic_timer),
                             color = ScoreTraceColors.QuickActionGreen,
-                        ) {},
-                        QuickAction(
-                            label = "错题本",
-                            icon = painterResource(R.drawable.ic_book),
-                            color = ScoreTraceColors.QuickActionOrange,
-                        ) {},
+                        ) { AppToast.info("功能开发中") },
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )

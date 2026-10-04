@@ -48,6 +48,8 @@ data class HomeUiState(
     val targetSchool: TargetSchool? = null,
     /** 目标院校校徽地址（按校名从 schools.json 反查）；未知院校为 null，UI 回退首字 */
     val targetSchoolLogoUrl: String? = null,
+    /** 目标院校层次标签（C9/985/211/双一流…）；未知为空列表，UI 不渲染标签 */
+    val targetSchoolTags: List<String> = emptyList(),
     /** 最近一次考试总分；null 表示暂无成绩 */
     val latestTotalScore: Int? = null,
     /** 班级排名文案（如「班级第15」）；无排名时为空串 */
@@ -96,10 +98,12 @@ class HomeViewModel @Inject constructor(
         examRecordRepository.observeAll(),
     ) { autoPlayMusic, targetSchool, scores, exams ->
         val summary = summarizeScores(scores, exams)
+        val targetSchoolInfo = targetSchool?.let { schoolRepository.findByName(it.schoolName) }
         HomeUiState(
             autoPlayMusic = autoPlayMusic,
             targetSchool = targetSchool,
-            targetSchoolLogoUrl = targetSchool?.let { schoolRepository.findByName(it.schoolName)?.logoUrl },
+            targetSchoolLogoUrl = targetSchoolInfo?.logoUrl,
+            targetSchoolTags = targetSchoolInfo?.tags.orEmpty(),
             latestTotalScore = summary.latestTotal,
             latestRankText = summary.rankText,
             latestGradeRankText = summary.gradeRankText,
@@ -155,9 +159,22 @@ class HomeViewModel @Inject constructor(
         ),
     )
 
-    /** 备考天数：取倒计时天数并按天去重，避免秒级 tick 触发整页重组 */
-    val studyDayCount: StateFlow<Int> = countdownState
-        .map { it.days.toInt() }
+    /** 问候语：按时段生成，distinctUntilChanged 后每小时才发射一次，不带动整页重组 */
+    val greeting: StateFlow<String> = ticker
+        .map { greetFor(it) }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = greetFor(System.currentTimeMillis()),
+        )
+
+    /** 备考天数：从「备考开始日（高考日 − 1 年）」到今天，与倒计时剩余天数是两个数 */
+    val studyDayCount: StateFlow<Int> = userPreferences.gaokaoTimestamp
+        .map { target ->
+            val examDate = Instant.ofEpochMilli(target).atZone(ZoneId.systemDefault()).toLocalDate()
+            ChronoUnit.DAYS.between(examDate.minusYears(1), LocalDate.now()).toInt().coerceAtLeast(0)
+        }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -165,13 +182,14 @@ class HomeViewModel @Inject constructor(
             initialValue = 0,
         )
 
-    /** 六科得分率：取最近一次该科目成绩的 score / fullScore，无成绩记 0 */
+    /** 各科得分率：语数英 + 用户选科，取最近一次该科目成绩的 score / fullScore，无成绩记 0 */
     val subjectRates: StateFlow<List<SubjectScore>> = combine(
         scoreRecordRepository.observeRecent(HOME_RECENT_SCORE_LIMIT),
         subjectRepository.observeSubjects(),
-    ) { records, subjects ->
+        userPreferences.selectedSubjects,
+    ) { records, subjects, selectedSubjects ->
         val idByName = subjects.associate { it.name to it.id }
-        SIX_SUBJECTS.map { name ->
+        (REQUIRED_SUBJECTS + selectedSubjects).map { name ->
             val subjectId = idByName[name]
             val record = records
                 .filter { it.subjectId == subjectId }
@@ -190,7 +208,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = SIX_SUBJECTS.map { SubjectScore(it, 0f, colorForSubject(it)) },
+        initialValue = REQUIRED_SUBJECTS.map { SubjectScore(it, 0f, colorForSubject(it)) },
     )
 
     fun deleteTargetSchool(entity: TargetSchool) {
@@ -296,6 +314,18 @@ class HomeViewModel @Inject constructor(
         val delta: Int? = null,
     )
 
+    /** 按小时时段返回问候语，跨时段时才变化。 */
+    private fun greetFor(nowMillis: Long): String {
+        val hour = Instant.ofEpochMilli(nowMillis).atZone(ZoneId.systemDefault()).hour
+        return when (hour) {
+            in 5..10 -> "早上好"
+            in 11..13 -> "中午好"
+            in 14..17 -> "下午好"
+            in 18..22 -> "晚上好"
+            else -> "夜深了"
+        }
+    }
+
     /** 已完成百分比 = （今天 - 备考开始日）/（高考日 - 备考开始日），截断在 0~100。 */
     private fun computeYearPassedPercent(targetTimestamp: Long): Int {
         val examDate = Instant.ofEpochMilli(targetTimestamp).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -317,8 +347,8 @@ class HomeViewModel @Inject constructor(
 
         const val DEFAULT_AI_FOCUS = "保持每日学习节奏，重点突破薄弱科目。"
 
-        /** 成绩概览固定展示的六科 */
-        val SIX_SUBJECTS = listOf("语文", "数学", "英语", "物理", "化学", "生物")
+        /** 成绩概览固定展示的必考三科（语数英），再拼接用户选科 */
+        val REQUIRED_SUBJECTS = listOf("语文", "数学", "英语")
 
         /** 进度条配色（按设计稿：语数蓝 / 英语绿 / 物理深绿 / 化学橙 / 生物青） */
         fun colorForSubject(name: String): Color = when (name) {

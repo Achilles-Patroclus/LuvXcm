@@ -31,8 +31,7 @@ data class QuickAction(
 )
 
 /**
- * 快捷功能区：四个圆角功能入口。
- * AI 录成绩（蓝）/ 学习计时器（绿）/ 错题本（橙）/ 学习计划（紫）
+ * 快捷功能区：并排展示若干圆角功能入口，具体项由调用方传入。
  */
 @Composable
 fun QuickActions(

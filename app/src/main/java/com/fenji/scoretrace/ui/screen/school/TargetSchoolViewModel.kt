@@ -11,6 +11,7 @@ import com.fenji.scoretrace.data.repository.MajorRepository
 import com.fenji.scoretrace.data.repository.SchoolRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
+import com.fenji.scoretrace.util.AppToast
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -153,16 +154,18 @@ class TargetSchoolViewModel @Inject constructor(
             val state = _uiState.value
             val school = state.schools.find { it.id == state.selectedSchoolId }
             if (school != null) {
-                val year = savedTarget?.year ?: Calendar.getInstance().get(Calendar.YEAR)
+                // 以库中当前行为准取 id：load() 是异步的，若在其完成前保存，savedTarget 可能仍为 null
+                val current = targetSchoolRepository.observeLatest().first()
                 targetSchoolRepository.save(
                     schoolName = school.name,
                     majorName = state.selectedMajor?.display.orEmpty(),
                     targetScore = state.targetScore,
                     currentScore = state.currentScore,
-                    year = year,
-                    id = savedTarget?.id ?: 0L,
+                    year = current?.year ?: Calendar.getInstance().get(Calendar.YEAR),
+                    id = current?.id ?: 0L,
                 )
                 savedTarget = targetSchoolRepository.observeLatest().first()
+                AppToast.success("目标院校已保存")
             }
             onSaved()
         }
