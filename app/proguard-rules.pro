@@ -7,7 +7,7 @@
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 
 # 保留 dto 包下的数据模型（Gson 反射依赖字段名）
--keep class com.fenji.scorcetrace.data.remote.dto.** { *; }
+-keep class com.fenji.scoretrace.data.remote.dto.** { *; }
 
 # OkHttp 平台相关可选项缺失时的警告忽略
 -dontwarn okhttp3.**

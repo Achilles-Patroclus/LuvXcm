@@ -8,13 +8,13 @@ plugins {
 }
 
 android {
-    namespace = "com.fenji.scorcetrace"
+    namespace = "com.fenji.scoretrace"
     compileSdk = 37
     // 已装 build-tools 37.0.0（其原生工具已替换为 ARM64 静态版），显式指定避免 AGP 去下载默认版本
     buildToolsVersion = "37.0.0"
 
     defaultConfig {
-        applicationId = "com.fenji.scorcetrace"
+        applicationId = "com.fenji.scoretrace"
         // miuix-blur / backdrop 依赖 RuntimeShader，库自身声明 minSdk 33
         minSdk = 33
         targetSdk = 37
