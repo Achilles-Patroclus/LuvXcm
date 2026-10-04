@@ -162,7 +162,10 @@ private fun YearProgress(yearPassedPercent: Int) {
     }
 }
 
-/** 时/分/秒单元：各自只订阅自己那一位，秒级 tick 不会波及天/时/分。 */
+/**
+ * 时/分/秒有状态包装：只订阅自己那一位，补零后交给无状态叶子 [CountdownUnit]。
+ * 只有自己那一位变化时才重组，不波及天/时/分。
+ */
 @Composable
 private fun TimeUnitBox(
     countdown: State<CountdownUiState>,
@@ -170,7 +173,22 @@ private fun TimeUnitBox(
     label: String,
     highlight: Boolean = false,
 ) {
-    val value by remember(selector) { derivedStateOf { selector(countdown.value) } }
+    val value by remember(selector) {
+        derivedStateOf { selector(countdown.value).toString().padStart(2, '0') }
+    }
+    CountdownUnit(label = label, value = value, highlight = highlight)
+}
+
+/**
+ * 时/分/秒单元叶子（无状态）：入参只有不可变基本值，全部稳定，Compose 可跳过。
+ * 秒位每秒变化时只重组这一个盒子。
+ */
+@Composable
+private fun CountdownUnit(
+    label: String,
+    value: String,
+    highlight: Boolean = false,
+) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
@@ -180,7 +198,7 @@ private fun TimeUnitBox(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = value.toString().padStart(2, '0'),
+            text = value,
             fontSize = 19.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
