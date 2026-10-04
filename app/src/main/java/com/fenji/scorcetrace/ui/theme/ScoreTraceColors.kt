@@ -92,6 +92,10 @@ object ScoreTraceColors {
     val WarningOrange = Color(0xFFF59E0B)
     val ErrorRed = Color(0xFFEF4444)
 
+    /** 六科进度条配色中的专属色（语数用品牌蓝、英语用 SuccessGreen、化学用 WarningOrange） */
+    val SubjectPhysicsGreen = Color(0xFF059669)
+    val SubjectBiologyTeal = Color(0xFF14B8A6)
+
     /** 快捷功能四色 */
     val QuickActionBlue = Color(0xFF3B82F6)
     val QuickActionGreen = Color(0xFF10B981)

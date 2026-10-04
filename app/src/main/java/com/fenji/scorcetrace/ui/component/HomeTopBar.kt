@@ -48,6 +48,7 @@ import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 fun HomeTopBar(
     subtitle: String,
     isMusicPlaying: Boolean,
+    unreadCount: Int,
     onMusicClick: () -> Unit,
     onNotificationClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -125,15 +126,17 @@ fun HomeTopBar(
                     tint = ScoreTraceColors.TextPrimaryLight,
                     modifier = Modifier.size(18.dp),
                 )
-                // 红点
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(ScoreTraceColors.ErrorRed),
-                )
+                // 未读红色圆点：有未读才渲染，无未读不显示任何点
+                if (unreadCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 6.dp, end = 6.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red),
+                    )
+                }
             }
         }
     }

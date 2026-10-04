@@ -54,6 +54,8 @@ import java.util.Locale
 fun TargetSchoolCardNew(
     targetSchool: TargetSchool?,
     logoUrl: String?,
+    /** 当前分：取最近一次考试总分，随新成绩导入实时更新；无成绩时回退到录入时的快照 */
+    currentScore: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -74,7 +76,7 @@ fun TargetSchoolCardNew(
         if (targetSchool == null) {
             TargetSchoolEmptyContent()
         } else {
-            TargetSchoolContent(targetSchool, logoUrl)
+            TargetSchoolContent(targetSchool, logoUrl, currentScore)
         }
     }
 }
@@ -117,16 +119,16 @@ private fun TargetSchoolEmptyContent() {
 }
 
 @Composable
-private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?) {
+private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?, currentScore: Int) {
     // 顶部行：校徽 + 学校信息 + 箭头
     Row(verticalAlignment = Alignment.CenterVertically) {
         SchoolLogoBlock(schoolName = targetSchool.schoolName, logoUrl = logoUrl)
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = targetSchool.schoolName,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                     lineHeight = 20.sp,
                     color = ScoreTraceColors.TextPrimaryLight,
@@ -163,48 +165,47 @@ private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?) {
         )
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // 三列分数
+    // 三列分数：等宽均分，数字大小统一
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         ScoreColumn(
             label = "目标分",
             value = targetSchool.targetScore.toString(),
             color = ScoreTraceColors.BrandPrimary,
+            modifier = Modifier.weight(1f),
         )
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(20.dp)
-                .background(ScoreTraceColors.CardBorderLight),
-        )
+        Divider()
         ScoreColumn(
             label = "当前分",
-            value = targetSchool.currentScore.toString(),
+            value = currentScore.toString(),
             color = ScoreTraceColors.WarningOrange,
+            modifier = Modifier.weight(1f),
         )
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .height(20.dp)
-                .background(ScoreTraceColors.CardBorderLight),
-        )
-        val diff = (targetSchool.targetScore - targetSchool.currentScore).coerceAtLeast(0)
+        Divider()
+        // 三态：还差 / 刚好达标 / 已超
+        val diff = targetSchool.targetScore - currentScore
+        val (diffLabel, diffValue, diffColor) = when {
+            diff > 0 -> Triple("还差", "$diff 分", ScoreTraceColors.ErrorRed)
+            diff == 0 -> Triple("达成", "刚好达标", ScoreTraceColors.SuccessGreen)
+            else -> Triple("已超", "${-diff} 分", ScoreTraceColors.SuccessGreen)
+        }
         ScoreColumn(
-            label = "还差",
-            value = "$diff 分",
-            color = ScoreTraceColors.ErrorRed,
+            label = diffLabel,
+            value = diffValue,
+            color = diffColor,
+            modifier = Modifier.weight(1f),
         )
     }
 
-    Spacer(modifier = Modifier.height(6.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // 达成率
+    // 达成率（当前分超过目标分时封顶 100%）
     val rate = if (targetSchool.targetScore > 0) {
-        (targetSchool.currentScore.toFloat() / targetSchool.targetScore * 100).coerceIn(0f, 100f)
+        (currentScore.toFloat() / targetSchool.targetScore * 100).coerceIn(0f, 100f)
     } else {
         0f
     }
@@ -228,14 +229,14 @@ private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(5.dp)
+            .height(6.dp)
             .clip(RoundedCornerShape(3.dp))
             .background(ScoreTraceColors.CardBorderLight),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth((rate / 100f).coerceIn(0f, 1f))
-                .height(5.dp)
+                .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(
                     Brush.horizontalGradient(
@@ -246,6 +247,17 @@ private fun TargetSchoolContent(targetSchool: TargetSchool, logoUrl: String?) {
     }
 }
 
+/** 三列分数之间的竖直分隔线 */
+@Composable
+private fun Divider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(32.dp)
+            .background(ScoreTraceColors.CardBorderLight),
+    )
+}
+
 /** 校徽：在线加载，失败（无网络 / 无图）时回退为院校首字渐变块。 */
 @Composable
 private fun SchoolLogoBlock(schoolName: String, logoUrl: String?) {
@@ -253,8 +265,8 @@ private fun SchoolLogoBlock(schoolName: String, logoUrl: String?) {
 
     Box(
         modifier = Modifier
-            .size(34.dp)
-            .clip(RoundedCornerShape(11.dp))
+            .size(48.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(
                 Brush.linearGradient(
                     listOf(ScoreTraceColors.SchoolPurple, ScoreTraceColors.SchoolPurpleLight),
@@ -265,8 +277,8 @@ private fun SchoolLogoBlock(schoolName: String, logoUrl: String?) {
         if (logoUrl.isNullOrBlank() || failed) {
             Text(
                 text = schoolName.take(1),
-                fontSize = 17.sp,
-                lineHeight = 20.sp,
+                fontSize = 20.sp,
+                lineHeight = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
@@ -283,21 +295,27 @@ private fun SchoolLogoBlock(schoolName: String, logoUrl: String?) {
 }
 
 @Composable
-private fun ScoreColumn(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ScoreColumn(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = label,
             fontSize = 12.sp,
             lineHeight = 14.sp,
             color = ScoreTraceColors.TextSecondaryLight,
         )
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            fontSize = 17.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 20.sp,
+            lineHeight = 24.sp,
+            fontWeight = FontWeight.Bold,
             color = color,
+            maxLines = 1,
         )
     }
 }

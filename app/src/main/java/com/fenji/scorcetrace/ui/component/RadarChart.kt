@@ -35,7 +35,7 @@ fun RadarChart(
     // 六科全无数据时视为空态：不画数据多边形与数据点，改为在中心提示
     val isEmpty = values.all { it <= 0.01f }
 
-    Canvas(modifier = modifier.size(140.dp)) {
+    Canvas(modifier = modifier) {
         val n = labels.size
         if (n == 0) return@Canvas
         val center = Offset(size.width / 2f, size.height / 2f)

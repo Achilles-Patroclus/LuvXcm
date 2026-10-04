@@ -263,59 +263,61 @@ private fun NotificationRow(notification: NotificationEntity, onClick: () -> Uni
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(accent.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
+        Box {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.Top,
             ) {
-                Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = notification.title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = ScoreTraceColors.TextPrimaryLight,
-                        modifier = Modifier.weight(1f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (!notification.isRead) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(ScoreTraceColors.BrandPrimary),
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = notification.content,
+                        fontSize = 13.sp,
+                        color = ScoreTraceColors.TextSecondaryLight,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = formatRelativeTime(notification.timestamp),
+                        fontSize = 11.sp,
+                        color = ScoreTraceColors.TextTertiaryLight,
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = notification.content,
-                    fontSize = 13.sp,
-                    color = ScoreTraceColors.TextSecondaryLight,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatRelativeTime(notification.timestamp),
-                    fontSize = 11.sp,
-                    color = ScoreTraceColors.TextTertiaryLight,
+            }
+
+            // 未读蓝点：图标底右侧顶部，与首页铃铛红点（未读计数）区分
+            if (!notification.isRead) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 14.dp, end = 16.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(ScoreTraceColors.BrandPrimary),
                 )
             }
         }

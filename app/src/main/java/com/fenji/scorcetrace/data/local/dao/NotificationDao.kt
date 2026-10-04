@@ -34,4 +34,8 @@ interface NotificationDao {
     /** 只保留最近 30 天：删除 cutoff 之前的记录 */
     @Query("DELETE FROM notifications WHERE timestamp < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
+
+    /** 删除某类型在 [startOfDay] 之后的通知，用于「每天只保留一条」的去重 */
+    @Query("DELETE FROM notifications WHERE type = :type AND timestamp >= :startOfDay")
+    suspend fun deleteByTypeSince(type: String, startOfDay: Long)
 }

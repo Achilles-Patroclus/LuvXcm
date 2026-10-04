@@ -58,6 +58,7 @@ val DEFAULT_PLAYLIST = listOf(
 @Singleton
 class MusicPlayerManager @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val musicCache: MusicCacheRepository,
 ) {
 
     private var _exoPlayer: ExoPlayer? = null
@@ -70,14 +71,22 @@ class MusicPlayerManager @Inject constructor(
     val exoPlayer: ExoPlayer
         get() {
             if (_exoPlayer == null) {
+                // 按上次退出的歌曲与进度恢复起始位置
+                val snapshot = musicCache.load()
+                val startIndex = snapshot
+                    ?.let { s -> _playlist.value.indexOfFirst { it.id == s.songId }.takeIf { it >= 0 } }
+                    ?: 0
+                val startPosition = snapshot?.positionMs?.coerceAtLeast(0L) ?: 0L
+
                 val mediaSourceFactory = DefaultMediaSourceFactory(context)
                     .setDataSourceFactory(OkHttpDataSource.Factory(createAudioHttpClient()))
                 _exoPlayer = ExoPlayer.Builder(context)
                     .setMediaSourceFactory(mediaSourceFactory)
                     .build()
                     .apply {
-                        setMediaItems(DEFAULT_PLAYLIST.map { MediaItem.fromUri(it.url) }, 0, 0L)
+                        setMediaItems(_playlist.value.map { MediaItem.fromUri(it.url) }, startIndex, startPosition)
                         repeatMode = Player.REPEAT_MODE_ALL
+                        volume = DEFAULT_VOLUME
                         // 显式声明：只有调用 play() 才出声，不依赖 ExoPlayer 的默认值，
                         // 以免绕过「进入应用自动播放音乐」开关
                         playWhenReady = false
@@ -124,7 +133,18 @@ class MusicPlayerManager @Inject constructor(
      * 用 `_exoPlayer` 判空：从没播过就退后台时，不要凭空创建播放器。
      */
     fun onAppBackground() {
-        wasPlayingBeforeBackground = _exoPlayer?.isPlaying == true
+        val player = _exoPlayer
+        wasPlayingBeforeBackground = player?.isPlaying == true
+        // 记住歌曲与进度，供下次冷启动恢复
+        if (player != null) {
+            val songId = _playlist.value.getOrNull(player.currentMediaItemIndex)?.id
+            if (songId != null) {
+                musicCache.save(
+                    songId = songId,
+                    positionMs = player.currentPosition.coerceAtLeast(0L),
+                )
+            }
+        }
         if (wasPlayingBeforeBackground) pause()
     }
 
@@ -159,5 +179,8 @@ class MusicPlayerManager @Inject constructor(
         const val AUDIO_CACHE_DIR = "audio_cache"
         const val AUDIO_CACHE_BYTES = 100L * 1024 * 1024
         const val AUDIO_CACHE_MAX_AGE_SECONDS = 604800L
+
+        /** 默认音量：0.65（原 1.0 偏大） */
+        const val DEFAULT_VOLUME = 0.65f
     }
 }

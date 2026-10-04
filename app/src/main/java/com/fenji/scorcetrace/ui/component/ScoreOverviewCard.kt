@@ -23,10 +23,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fenji.scorcetrace.R
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
+import kotlin.math.roundToInt
 
 /** 一科的成绩概览数据 */
 data class SubjectScore(
@@ -52,6 +54,8 @@ fun ScoreOverviewCard(
     totalScore: String?,
     /** 排名文案（如「班级第15」）；无排名时空串 */
     rankText: String,
+    /** 年级排名文案（如「年级第3」）；无排名时为 null */
+    gradeRankText: String?,
     /** 较上次变化文案；null 时隐藏 */
     deltaText: String?,
     deltaPositive: Boolean,
@@ -101,9 +105,9 @@ fun ScoreOverviewCard(
             RadarChart(
                 labels = subjects.map { it.name },
                 values = subjects.map { it.rate },
-                modifier = Modifier.size(88.dp),
+                modifier = Modifier.size(130.dp),
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -127,7 +131,11 @@ fun ScoreOverviewCard(
         ) {
             Text(
                 text = totalScore?.let { score ->
-                    if (rankText.isNotBlank()) "总分 $score · $rankText" else "总分 $score"
+                    buildString {
+                        append("总分 ").append(score)
+                        if (rankText.isNotBlank()) append(" · ").append(rankText)
+                        if (!gradeRankText.isNullOrBlank()) append(" · ").append(gradeRankText)
+                    }
                 } ?: "暂无成绩",
                 fontSize = 14.sp,
                 lineHeight = 17.sp,
@@ -166,35 +174,36 @@ private fun SubjectProgressRow(subject: SubjectScore) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = subject.name,
-            fontSize = 14.sp,
-            lineHeight = 17.sp,
+            fontSize = 13.sp,
+            lineHeight = 16.sp,
             color = ScoreTraceColors.TextSecondaryLight,
-            modifier = Modifier.width(32.dp),
+            modifier = Modifier.width(36.dp),
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .height(7.dp)
+                .clip(RoundedCornerShape(3.5.dp))
                 .background(ScoreTraceColors.CardBorderLight),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(subject.rate.coerceIn(0f, 1f))
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(3.5.dp))
                     .background(subject.color),
             )
         }
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "${(subject.rate * 100).toInt()}%",
-            fontSize = 14.sp,
-            lineHeight = 17.sp,
+            text = "${(subject.rate * 100).roundToInt()}%",
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
             fontWeight = FontWeight.Medium,
             color = subject.color,
-            modifier = Modifier.width(34.dp),
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(36.dp),
         )
     }
 }

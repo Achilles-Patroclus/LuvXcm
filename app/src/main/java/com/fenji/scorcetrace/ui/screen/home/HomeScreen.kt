@@ -61,8 +61,6 @@ import com.fenji.scorcetrace.ui.theme.Dimens
 import com.fenji.scorcetrace.ui.theme.ScoreTraceColors
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import java.util.Calendar
-import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
@@ -85,6 +83,8 @@ fun HomeScreen(
     val subjectRates by viewModel.subjectRates.collectAsStateWithLifecycle()
     val aiFocus by viewModel.aiFocus.collectAsStateWithLifecycle()
     val studyDay by viewModel.studyDayCount.collectAsStateWithLifecycle()
+    val unreadCount by viewModel.unreadCount.collectAsStateWithLifecycle()
+    val yearPassedPercent by viewModel.yearPassedPercent.collectAsStateWithLifecycle()
 
     var showTargetDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showPlaylist by rememberSaveable { mutableStateOf(false) }
@@ -135,6 +135,8 @@ fun HomeScreen(
         studyDay = studyDay,
         subjectRates = subjectRates,
         aiFocus = aiFocus,
+        unreadCount = unreadCount,
+        yearPassedPercent = yearPassedPercent,
         bottomContentPadding = bottomContentPadding,
         showMusicPanel = showMusicPanel,
         musicPanel = musicPanel,
@@ -256,6 +258,8 @@ private fun HomeScreenContent(
     studyDay: Int,
     subjectRates: List<SubjectScore>,
     aiFocus: String,
+    unreadCount: Int,
+    yearPassedPercent: Int,
     bottomContentPadding: Dp,
     showMusicPanel: Boolean,
     musicPanel: @Composable () -> Unit,
@@ -267,8 +271,6 @@ private fun HomeScreenContent(
     onDetailClick: () -> Unit,
     onOpenAiScore: () -> Unit,
 ) {
-    val yearPassedPercent = rememberYearPassedPercent()
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -278,6 +280,7 @@ private fun HomeScreenContent(
         HomeTopBar(
             subtitle = "早上好，备考第 $studyDay 天",
             isMusicPlaying = isPlaying,
+            unreadCount = unreadCount,
             onMusicClick = onMusicClick,
             onNotificationClick = onNotificationClick,
         )
@@ -310,6 +313,7 @@ private fun HomeScreenContent(
                 TargetSchoolCardNew(
                     targetSchool = state.targetSchool,
                     logoUrl = state.targetSchoolLogoUrl,
+                    currentScore = state.latestTotalScore ?: state.targetSchool?.currentScore ?: 0,
                     onClick = onTargetClick,
                     onLongClick = onTargetLongClick,
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -323,6 +327,7 @@ private fun HomeScreenContent(
                     subjects = subjectRates,
                     totalScore = state.latestTotalScore?.toString(),
                     rankText = state.latestRankText,
+                    gradeRankText = state.latestGradeRankText.takeIf { it.isNotBlank() },
                     deltaText = delta?.takeIf { it != 0 }?.let { "较上次 ${if (it > 0) "↑" else "↓"}${kotlin.math.abs(it)} 分" },
                     deltaPositive = (delta ?: 0) >= 0,
                     onDetailClick = onDetailClick,
@@ -375,13 +380,4 @@ private fun HomeScreenContent(
             }
         }
     }
-}
-
-/** 「今年已过百分比」，由系统时间本地推导，不涉及业务状态。 */
-@Composable
-private fun rememberYearPassedPercent(): Int = remember {
-    val calendar = Calendar.getInstance()
-    val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
-    val totalDays = calendar.getActualMaximum(Calendar.DAY_OF_YEAR)
-    if (totalDays > 0) (dayOfYear * 100f / totalDays).roundToInt() else 0
 }

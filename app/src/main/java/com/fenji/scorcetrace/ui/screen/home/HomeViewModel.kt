@@ -33,9 +33,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 data class HomeUiState(
     /** 进入应用是否自动播放音乐（来自 DataStore） */
@@ -48,6 +52,8 @@ data class HomeUiState(
     val latestTotalScore: Int? = null,
     /** 班级排名文案（如「班级第15」）；无排名时为空串 */
     val latestRankText: String = "",
+    /** 年级排名文案（如「年级第3」）；无排名时为空串 */
+    val latestGradeRankText: String = "",
     /** 与上一次考试的总分差；null 表示无从计算 */
     val scoreDelta: Int? = null,
     val isLoading: Boolean = true,
@@ -96,6 +102,7 @@ class HomeViewModel @Inject constructor(
             targetSchoolLogoUrl = targetSchool?.let { schoolRepository.findByName(it.schoolName)?.logoUrl },
             latestTotalScore = summary.latestTotal,
             latestRankText = summary.rankText,
+            latestGradeRankText = summary.gradeRankText,
             scoreDelta = summary.delta,
             isLoading = false,
         )
@@ -104,6 +111,26 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState(),
     )
+
+    /** 未读通知数：驱动首页铃铛红点的显示/隐藏 */
+    val unreadCount: StateFlow<Int> = notificationRepository.observeUnreadCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 0,
+        )
+
+    /**
+     * 年度进度：以「目标高考日前一年」为备考开始日，计算到高考日已完成的百分比。
+     * 与倒计时共用同一目标时间戳，改高考日期后自动跟随。
+     */
+    val yearPassedPercent: StateFlow<Int> = userPreferences.gaokaoTimestamp
+        .map { computeYearPassedPercent(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = computeYearPassedPercent(DateUtils.defaultGaokaoTimestamp()),
+        )
 
     /** 今日 AI 重点（每天生成一次，缓存到 DataStore） */
     private val _aiFocus = MutableStateFlow(DEFAULT_AI_FOCUS)
@@ -199,7 +226,8 @@ class HomeViewModel @Inject constructor(
         _aiFocus.value = focus
         userPreferences.saveAiFocus(focus, today)
         if (result.isSuccess) {
-            notificationRepository.add(
+            // 覆盖当天旧记录，避免同一天生成多条「今日 AI 重点」
+            notificationRepository.addReplacingToday(
                 type = NotificationType.AI,
                 title = "今日 AI 重点",
                 content = focus,
@@ -234,10 +262,11 @@ class HomeViewModel @Inject constructor(
             .sortedByDescending { it.date }
         val latest = byExam.first()
         val previous = byExam.getOrNull(1)
-        val rank = exams.firstOrNull { it.examName == latest.name }?.classRank
+        val exam = exams.firstOrNull { it.examName == latest.name }
         return ScoreSummary(
             latestTotal = latest.total,
-            rankText = rank?.let { "班级第$it" } ?: "",
+            rankText = exam?.classRank?.let { "班级第$it" } ?: "",
+            gradeRankText = exam?.gradeRank?.let { "年级第$it" } ?: "",
             delta = previous?.let { latest.total - it.total },
         )
     }
@@ -263,8 +292,19 @@ class HomeViewModel @Inject constructor(
     private data class ScoreSummary(
         val latestTotal: Int? = null,
         val rankText: String = "",
+        val gradeRankText: String = "",
         val delta: Int? = null,
     )
+
+    /** 已完成百分比 = （今天 - 备考开始日）/（高考日 - 备考开始日），截断在 0~100。 */
+    private fun computeYearPassedPercent(targetTimestamp: Long): Int {
+        val examDate = Instant.ofEpochMilli(targetTimestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+        val startDate = examDate.minusYears(1)
+        val totalDays = ChronoUnit.DAYS.between(startDate, examDate)
+        if (totalDays <= 0L) return 0
+        val elapsedDays = ChronoUnit.DAYS.between(startDate, LocalDate.now())
+        return (elapsedDays * 100f / totalDays).roundToInt().coerceIn(0, 100)
+    }
 
     private companion object {
         const val MILLIS_PER_SECOND = 1_000L
@@ -280,11 +320,14 @@ class HomeViewModel @Inject constructor(
         /** 成绩概览固定展示的六科 */
         val SIX_SUBJECTS = listOf("语文", "数学", "英语", "物理", "化学", "生物")
 
-        /** 进度条配色（按设计稿：语数蓝 / 英物生绿 / 化橙） */
+        /** 进度条配色（按设计稿：语数蓝 / 英语绿 / 物理深绿 / 化学橙 / 生物青） */
         fun colorForSubject(name: String): Color = when (name) {
             "语文" -> ScoreTraceColors.BrandPrimary
             "数学" -> ScoreTraceColors.BrandPrimaryDark
+            "英语" -> ScoreTraceColors.SuccessGreen
+            "物理" -> ScoreTraceColors.SubjectPhysicsGreen
             "化学" -> ScoreTraceColors.WarningOrange
+            "生物" -> ScoreTraceColors.SubjectBiologyTeal
             else -> ScoreTraceColors.SuccessGreen
         }
     }
