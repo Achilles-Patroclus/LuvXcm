@@ -25,12 +25,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,9 +81,11 @@ fun AiScoreInputScreen(
     onSaved: () -> Unit,
     viewModel: AiScoreInputViewModel = hiltViewModel(),
 ) {
-    val isParsing by viewModel.isParsing.collectAsStateWithLifecycle()
     val parseHint by viewModel.parseHint.collectAsStateWithLifecycle()
     val parsedSheet by viewModel.parsedSheet.collectAsStateWithLifecycle()
+    val loadingStage by viewModel.loadingStage.collectAsStateWithLifecycle()
+    val pendingNameInput by viewModel.pendingNameInput.collectAsStateWithLifecycle()
+    val subjectMismatch by viewModel.subjectMismatch.collectAsStateWithLifecycle()
     var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -161,9 +165,9 @@ fun AiScoreInputScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = if (isParsing) "正在识别成绩单…" else "识别完成后请核对各科分数，必要时手动修正",
+                            text = loadingStage ?: "识别完成后请核对各科分数，必要时手动修正",
                             fontSize = 13.sp,
-                            color = if (isParsing) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextSecondaryLight,
+                            color = if (loadingStage != null) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextSecondaryLight,
                         )
                     }
                 }
@@ -303,6 +307,89 @@ fun AiScoreInputScreen(
             )
         }
     }
+
+    if (pendingNameInput) {
+        NameInputDialog(
+            onConfirm = viewModel::onNameSubmitted,
+            onDismiss = viewModel::onCancelNameInput,
+        )
+    }
+
+    subjectMismatch?.let { mismatch ->
+        SubjectMismatchDialog(
+            recognized = mismatch.recognized,
+            current = mismatch.current,
+            onConfirm = viewModel::onConfirmSubjectSwitch,
+            onDismiss = viewModel::onCancelSubjectSwitch,
+        )
+    }
+}
+
+@Composable
+private fun NameInputDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("检测到班级排名表") },
+        text = {
+            Column {
+                Text(
+                    text = "请输入你在表格中的姓名，将从表格中提取对应成绩。",
+                    fontSize = 13.sp,
+                    color = ScoreTraceColors.TextSecondaryLight,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("姓名") },
+                    placeholder = { Text("请输入你的姓名") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank(),
+                onClick = { onConfirm(name) },
+            ) { Text("确认") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun SubjectMismatchDialog(
+    recognized: List<String>,
+    current: List<String>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("检测到选科不一致") },
+        text = {
+            Text(
+                text = "识别到的科目为：${recognized.joinToString(" · ")}。\n" +
+                    "你当前选科为：${current.joinToString(" · ")}。\n是否切换选科并回填？",
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = ScoreTraceColors.TextSecondaryLight,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("切换并回填") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 @Composable
