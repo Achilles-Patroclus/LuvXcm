@@ -14,6 +14,7 @@ import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.ScoreSheetData
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.util.ImageEncoder
+import com.google.gson.JsonParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -92,9 +93,11 @@ class AiScoreInputViewModel @Inject constructor(
     /** 把识别错误翻译成用户可读文案：常见码给友好提示，其余带具体错误码。 */
     private fun describeError(error: Throwable): String {
         val code = (error as? GlmException)?.code
-        return when (code) {
-            "1305" -> "识别失败：服务繁忙，请稍后重试，也可手动录入"
-            "1301" -> "识别失败：图片可能含敏感内容，请更换后重试"
+        return when {
+            code == "1305" -> "识别失败：服务繁忙，请稍后重试，也可手动录入"
+            code == "1301" -> "识别失败：图片可能含敏感内容，请更换后重试"
+            // JSON 解析类异常统一友好化，不暴露 Gson 的异常类名/堆栈
+            error is JsonParseException -> "识别失败：识别结果格式异常，请手动录入"
             else -> {
                 val detail = error.message?.takeIf { it.isNotBlank() } ?: "网络异常"
                 val prefix = code?.let { "$it - " }.orEmpty()

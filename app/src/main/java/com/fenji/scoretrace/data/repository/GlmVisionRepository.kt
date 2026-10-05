@@ -8,9 +8,12 @@ import com.fenji.scoretrace.data.remote.glm.dto.GlmContent
 import com.fenji.scoretrace.data.remote.glm.dto.GlmImageUrl
 import com.fenji.scoretrace.data.remote.glm.dto.GlmMessage
 import com.google.gson.Gson
+import com.google.gson.Strictness
 import com.google.gson.annotations.SerializedName
+import com.google.gson.stream.JsonReader
 import kotlinx.coroutines.delay
 import retrofit2.HttpException
+import java.io.StringReader
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,9 +76,16 @@ class DefaultGlmVisionRepository @Inject constructor(
             )
             val response = apiService.chatCompletion(request)
             response.error?.let { throw GlmException(it.code, it.message ?: "GLM 返回错误") }
-            val content = response.choices.firstOrNull()?.message?.content
+            val choice = response.choices.firstOrNull()
+            val content = choice?.message?.content
                 ?: throw GlmException(null, "GLM 未返回识别结果")
-            Result.success(parse(content))
+            try {
+                Result.success(parse(content))
+            } catch (e: Exception) {
+                // 解析失败：打印原始内容与 finish_reason，便于判断是 markdown / 非法 token / 截断
+                Log.w(TAG, "GLM parse failed (finish_reason=${choice.finishReason}) rawContent=${content.take(500)}")
+                throw e
+            }
         } catch (e: HttpException) {
             // 非 2xx：Retrofit 抛 HttpException，错误码在响应体里，必须解析出来。
             Result.failure(toGlmException(e))
@@ -94,9 +104,9 @@ class DefaultGlmVisionRepository @Inject constructor(
     }
 
     private fun parse(raw: String): ScoreSheetData {
-        val json = extractJson(raw) ?: throw GlmException(null, "识别结果不是有效 JSON")
-        val dto = gson.fromJson(json, GlmSheetRaw::class.java)
-            ?: throw GlmException(null, "识别结果解析失败")
+        val cleaned = cleanJsonContent(raw)
+        val dto = parseRaw(cleaned)
+            ?: throw GlmException(null, "识别结果格式异常")
         val scores = dto.scores.orEmpty()
             .filterKeys { it.isNotBlank() }
             .map { (name, score) -> ScoreSheetSubject(name, score) }
@@ -112,12 +122,44 @@ class DefaultGlmVisionRepository @Inject constructor(
         )
     }
 
-    /** 取第一个 `{` 到最后一个 `}`，容忍模型包一层 markdown 代码块或多余说明。 */
-    private fun extractJson(raw: String): String? {
-        val start = raw.indexOf('{')
-        val end = raw.lastIndexOf('}')
-        if (start < 0 || end <= start) return null
-        return raw.substring(start, end + 1)
+    /** 先按标准 JSON 解析；失败再用宽容模式兜底（容忍未加引号的键名等）。 */
+    private fun parseRaw(json: String): GlmSheetRaw? {
+        val standard: GlmSheetRaw? = runCatching<GlmSheetRaw?> {
+            gson.fromJson(json, GlmSheetRaw::class.java)
+        }.getOrNull()
+        if (standard != null) return standard
+
+        val reader = JsonReader(StringReader(json))
+        reader.strictness = Strictness.LENIENT
+        return try {
+            gson.fromJson<GlmSheetRaw>(reader, GlmSheetRaw::class.java)
+        } catch (e: Exception) {
+            null
+        } finally {
+            reader.close()
+        }
+    }
+
+    /**
+     * 清洗模型输出，尽量还原出合法 JSON：
+     * 1) 剥离 markdown 代码块围栏；2) 去除 BOM 与零宽字符；3) 截取首个 `{` 到末个 `}`。
+     */
+    private fun cleanJsonContent(raw: String): String {
+        var s = raw.trim()
+
+        val codeBlock = CODE_BLOCK_REGEX.find(s)
+        if (codeBlock != null) {
+            s = codeBlock.groupValues[1].trim()
+        }
+
+        s = s.replace("\uFEFF", "").replace("\u200B", "").trim()
+
+        val start = s.indexOf('{')
+        val end = s.lastIndexOf('}')
+        if (start >= 0 && end > start) {
+            s = s.substring(start, end + 1)
+        }
+        return s
     }
 
     private data class GlmSheetRaw(
@@ -134,8 +176,10 @@ class DefaultGlmVisionRepository @Inject constructor(
         const val RETRY_BASE_DELAY_MS = 800L
         const val CODE_RATE_LIMIT = "1305"
 
+        val CODE_BLOCK_REGEX = Regex("```(?:json)?\\s*([\\s\\S]*?)\\s*```", RegexOption.IGNORE_CASE)
+
         val PROMPT = """
-            你是成绩单识别助手。请识别这张成绩单图片，**只返回一个 JSON 对象**（不要 markdown 代码块、不要任何解释）：
+            你是成绩单识别助手。请识别这张成绩单图片，**只返回一个 JSON 对象**：
             {
               "exam_name": "考试名称",
               "exam_date": "yyyy-MM-dd",
@@ -147,6 +191,7 @@ class DefaultGlmVisionRepository @Inject constructor(
             1. scores 的键必须是图片中确实出现的科目名（可选：语文/数学/英语/物理/化学/生物/政治/历史/地理）。
             2. 识别不到的字段用 null 或直接省略。
             3. 分值为纯数字，不带单位；日期统一为 yyyy-MM-dd。
+            输出要求：仅返回 JSON 对象，禁止添加 markdown 代码块、注释、前后说明文字。第一个字符必须是 {，最后一个字符必须是 }。
         """.trimIndent()
     }
 }
