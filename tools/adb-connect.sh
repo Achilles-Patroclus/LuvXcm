@@ -18,6 +18,10 @@ if [ -z "$ADB_BIN" ]; then
     exit 1
 fi
 
+# AiCode 容器与安卓宿主共享网络命名空间，宿主侧常已占用 127.0.0.1:5037 的 adb server，
+# 容器内默认端口的 adb 命令会因此挂起。改用独立端口避免冲突（可用环境变量覆盖）。
+export ANDROID_ADB_SERVER_PORT="${ANDROID_ADB_SERVER_PORT:-5038}"
+
 detect_ip() {
     hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+(\.[0-9]+){3}$' | head -n1
 }

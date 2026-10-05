@@ -64,6 +64,7 @@ ScoreTrace 项目的辅助脚本与数据生成工具。
 - `adb` 位于 `/root/android/sdk/platform-tools/adb`，**不在 PATH**；脚本会自动定位它。
 - adb server 不会自行后台化，直接跑 `adb` 会挂住不返回，脚本统一用 `setsid ... </dev/null` 规避。
 - AiCode 容器与安卓宿主**共享网络命名空间**（容器 `hostname -I` 显示的 IPv4 就是手机 LAN IP），所以 `adb-connect.sh` 不带参数时能自动探测到手机 IP，通常无需手动传。
+- **adb server 端口**：因为共享网络命名空间，宿主侧（AiCode App / 其他工具）常已占用 `127.0.0.1:5037` 的 adb server，会让容器内默认端口的 `adb` 命令**挂起不返回**。容器脚本已改用独立端口 `5038`（由 `ANDROID_ADB_SERVER_PORT` 控制，可用环境变量覆盖）。手动跑 `adb` 命令时也建议先 `export ANDROID_ADB_SERVER_PORT=5038`。
 
 ### 安全提醒
 
