@@ -20,6 +20,9 @@ interface ConversationRepository {
 
     suspend fun touchConversation(id: Long)
 
+    /** 更新会话标题（如 AI 自动生成的短标题） */
+    suspend fun updateTitle(conversationId: Long, title: String)
+
     /** 删除会话及其全部消息 */
     suspend fun deleteConversation(id: Long)
 
@@ -58,6 +61,10 @@ class DefaultConversationRepository @Inject constructor(
 
     override suspend fun touchConversation(id: Long) {
         conversationDao.touchConversation(id, System.currentTimeMillis())
+    }
+
+    override suspend fun updateTitle(conversationId: Long, title: String) {
+        conversationDao.updateConversation(conversationId, title, System.currentTimeMillis())
     }
 
     override suspend fun deleteConversation(id: Long) {

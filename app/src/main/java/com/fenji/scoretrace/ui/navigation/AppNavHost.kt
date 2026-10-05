@@ -110,7 +110,7 @@ fun AppNavHost(
 
     val tabs = listOf(
         BottomBarTab(Screen.Home, R.string.tab_home, rememberVectorPainter(Icons.Filled.Home)),
-        BottomBarTab(Screen.AI, R.string.tab_ai, painterResource(R.drawable.ic_smart_toy)),
+        BottomBarTab(Screen.AI, R.string.tab_ai, painterResource(R.drawable.ic_ai_logo)),
         BottomBarTab(Screen.Score, R.string.tab_score, painterResource(R.drawable.ic_bar_chart)),
         BottomBarTab(Screen.Mine, R.string.tab_mine, rememberVectorPainter(Icons.Filled.Person)),
     )

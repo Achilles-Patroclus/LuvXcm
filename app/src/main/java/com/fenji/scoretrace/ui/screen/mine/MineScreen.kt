@@ -129,6 +129,7 @@ fun MineScreen(
                     iconBgColor = ScoreTraceColors.AccentCyanOnLight,
                     title = "省份",
                     value = state.province,
+                    subtitle = "自动定位所得，点击可手动修正",
                     onClick = { showProvinceDialog = true },
                 )
             }

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.fenji.scoretrace.util.DateUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -86,6 +87,24 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /**
+     * 是否已完成「首次启动自动定位」流程（成功、失败、用户拒绝都算完成），
+     * 保证只询问一次，不重复打扰用户。
+     */
+    val provinceLocated: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_PROVINCE_LOCATED] ?: false
+    }
+
+    suspend fun setProvinceLocated(value: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_PROVINCE_LOCATED] = value
+        }
+    }
+
+    /** 用户是否显式设置过省份（用于区分默认「云南」与用户手动选择，避免定位覆盖用户选择）。 */
+    suspend fun hasExplicitProvince(): Boolean =
+        context.dataStore.data.first()[KEY_PROVINCE] != null
+
     /** 今日 AI 重点文案（缓存） */
     val aiFocus: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_AI_FOCUS]
@@ -120,6 +139,7 @@ class UserPreferences @Inject constructor(
         val KEY_DARK_THEME = booleanPreferencesKey("dark_theme")
         val KEY_SELECTED_SUBJECTS = stringPreferencesKey("selected_subjects")
         val KEY_PROVINCE = stringPreferencesKey("province")
+        val KEY_PROVINCE_LOCATED = booleanPreferencesKey("province_located")
         val KEY_AI_FOCUS = stringPreferencesKey("ai_focus")
         val KEY_AI_FOCUS_DATE = stringPreferencesKey("ai_focus_date")
         val KEY_AI_FOCUS_SIGNAL = stringPreferencesKey("ai_focus_signal")

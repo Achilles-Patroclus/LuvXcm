@@ -62,7 +62,7 @@ fun AiFocusCard(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_smart_toy),
+                painter = painterResource(R.drawable.ic_ai_logo),
                 contentDescription = null,
                 tint = ScoreTraceColors.BrandPrimary,
                 modifier = Modifier.size(14.dp),

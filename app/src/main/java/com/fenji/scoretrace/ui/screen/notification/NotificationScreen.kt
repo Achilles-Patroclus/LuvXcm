@@ -329,7 +329,7 @@ private fun NotificationRow(notification: NotificationEntity, onClick: () -> Uni
 private fun iconFor(type: String): Pair<Painter, Color> = when (type) {
     NotificationType.SCORE -> painterResource(R.drawable.ic_edit_note) to ScoreTraceColors.BrandPrimary
     NotificationType.STUDY -> painterResource(R.drawable.ic_calendar_month) to ScoreTraceColors.WarningOrange
-    NotificationType.AI -> painterResource(R.drawable.ic_smart_toy) to ScoreTraceColors.AccentCyan
+    NotificationType.AI -> painterResource(R.drawable.ic_ai_logo) to ScoreTraceColors.AccentCyan
     else -> rememberVectorPainter(Icons.Filled.Settings) to SystemGray
 }
 

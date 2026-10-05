@@ -71,6 +71,7 @@ fun SettingNavigateItem(
     value: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     val interaction = rememberPressSource()
     Row(
@@ -87,13 +88,22 @@ fun SettingNavigateItem(
     ) {
         SettingIcon(icon = icon, bgColor = iconBgColor)
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = title,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            color = ScoreTraceColors.TextPrimaryLight,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = ScoreTraceColors.TextPrimaryLight,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = ScoreTraceColors.TextTertiaryLight,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
         Text(
             text = value,
             fontSize = 14.sp,

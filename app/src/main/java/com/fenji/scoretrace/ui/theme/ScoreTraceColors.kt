@@ -79,6 +79,9 @@ object ScoreTraceColors {
     /** 品牌渐变（倒计时卡 / 音乐胶囊用） */
     val BrandGradient = listOf(Color(0xFF3B82F6), Color(0xFF5BB8E8))
 
+    /** AI 品牌渐变（蓝 → 青绿）：AI 图标容器与发送按钮专用 */
+    val AiGradient = listOf(Color(0xFF4A90E2), Color(0xFF2ECC71))
+
     /** 目标院校紫色 */
     val SchoolPurple = Color(0xFF7C5CFC)
     val SchoolPurpleLight = Color(0xFF9B7FFF)

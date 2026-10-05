@@ -242,11 +242,11 @@ private fun ConversationSwipeCard(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(ScoreTraceColors.BrandGradient)),
+                    .background(Brush.linearGradient(ScoreTraceColors.AiGradient)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_smart_toy),
+                    painter = painterResource(R.drawable.ic_ai_logo),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp),

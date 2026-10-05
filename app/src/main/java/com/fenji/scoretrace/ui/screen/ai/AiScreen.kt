@@ -1,5 +1,6 @@
 package com.fenji.scoretrace.ui.screen.ai
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +30,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +56,7 @@ import com.fenji.scoretrace.ui.component.ai.AiWelcomeHero
 import com.fenji.scoretrace.ui.component.ai.ChatBubble
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.AppToast
+import kotlinx.coroutines.delay
 
 /**
  * AI 助手页面。
@@ -186,14 +191,29 @@ private fun ChatList(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val currentMessages by rememberUpdatedState(messages)
+    val isStreamingNow by remember {
+        derivedStateOf { currentMessages.lastOrNull()?.isStreaming == true }
+    }
 
-    LaunchedEffect(messages.size, messages.lastOrNull()?.content?.length) {
+    // 新消息出现（含首条流式消息）：流式瞬时滚、收尾平滑滚
+    LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            // 流式阶段用瞬时滚动避免每段动画抖动；收尾后平滑滚动
             if (messages.last().isStreaming) {
                 listState.scrollToItem(messages.lastIndex)
             } else {
                 listState.animateScrollToItem(messages.lastIndex)
+            }
+        }
+    }
+
+    // 流式增量：每 80ms 跟随一次，避免每个 token 重启 effect / 每 token 读状态触发重组
+    LaunchedEffect(listState, isStreamingNow) {
+        if (!isStreamingNow) return@LaunchedEffect
+        while (true) {
+            delay(80L)
+            if (listState.layoutInfo.totalItemsCount > 0) {
+                listState.scrollToItem(listState.layoutInfo.totalItemsCount - 1)
             }
         }
     }
@@ -205,7 +225,10 @@ private fun ChatList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(messages, key = { it.id }) { message ->
-            ChatBubble(message = message)
+            ChatBubble(
+                message = message,
+                modifier = Modifier.animateItem(fadeInSpec = tween(durationMillis = 220)),
+            )
         }
     }
 }

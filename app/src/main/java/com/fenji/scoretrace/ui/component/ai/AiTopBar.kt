@@ -49,7 +49,7 @@ fun AiTopBar(
         AiAvatar()
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = "AI 助手",
+            text = "ScoreTrace",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = ScoreTraceColors.TextPrimaryLight,
@@ -81,11 +81,11 @@ private fun AiAvatar() {
         modifier = Modifier
             .size(32.dp)
             .clip(CircleShape)
-            .background(Brush.linearGradient(ScoreTraceColors.BrandGradient)),
+            .background(Brush.linearGradient(ScoreTraceColors.AiGradient)),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_smart_toy),
+            painter = painterResource(R.drawable.ic_ai_logo),
             contentDescription = null,
             tint = Color.White,
             modifier = Modifier.size(18.dp),

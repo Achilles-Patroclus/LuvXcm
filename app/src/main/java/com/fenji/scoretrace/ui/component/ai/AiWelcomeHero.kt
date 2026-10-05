@@ -75,11 +75,11 @@ fun AiWelcomeHero(
                 modifier = Modifier
                     .size(88.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(ScoreTraceColors.BrandGradient)),
+                    .background(Brush.linearGradient(ScoreTraceColors.AiGradient)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_smart_toy),
+                    painter = painterResource(R.drawable.ic_ai_logo),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(48.dp),

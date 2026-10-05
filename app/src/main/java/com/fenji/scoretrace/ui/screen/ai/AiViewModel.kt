@@ -54,6 +54,8 @@ data class ChatMessage(
     val role: String,  // "user" / "assistant"
     val content: String,
     val isStreaming: Boolean = false,
+    /** 深度思考内容（AI 支持 thinking 字段前恒为 null，仅作占位） */
+    val thinking: String? = null,
 )
 
 /** 历史对话列表项 */
@@ -143,6 +145,9 @@ class AiViewModel @Inject constructor(
 
     /** 当前会话 id；null 表示尚未落库的新对话（首条提问时创建） */
     private var currentConversationId: Long? = null
+
+    /** 已生成（或无需生成）标题的会话 id，避免重复调用标题生成接口 */
+    private val titleGeneratedConversationIds = mutableSetOf<Long>()
 
     /** 六个快捷入口，点击即以预设问题发起对话。 */
     val quickActions: List<AiQuickAction> = buildQuickActions()
@@ -267,6 +272,7 @@ class AiViewModel @Inject constructor(
                 _isLoading.value = false
             }
             persistAssistantMessage(conversationId, assistantId)
+            maybeGenerateTitle(conversationId)
         }
     }
 
@@ -297,6 +303,8 @@ class AiViewModel @Inject constructor(
         _isLoading.value = false
         _uiState.value = AiUiState()
         currentConversationId = id
+        // 载入的历史会话已有标题，不再触发标题生成
+        titleGeneratedConversationIds.add(id)
         viewModelScope.launch {
             val rows = conversationRepository.observeMessages(id).first()
             _messages.value = rows.map { ChatMessage(it.id, it.role, it.content, isStreaming = false) }
@@ -341,6 +349,30 @@ class AiViewModel @Inject constructor(
             conversationRepository.addMessage(conversationId, "assistant", content)
             conversationRepository.touchConversation(conversationId)
         }
+    }
+
+    /**
+     * 首轮回复落库后，让 DeepSeek 生成一个 6-10 字短标题写入该会话；
+     * 每个会话只生成一次，接口失败/超时时回退为「首条提问前 15 字」。
+     */
+    private suspend fun maybeGenerateTitle(conversationId: Long) {
+        if (!titleGeneratedConversationIds.add(conversationId)) return
+        val snapshot = _messages.value
+        val firstUser = snapshot.firstOrNull { it.role == "user" }?.content ?: return
+        val firstAi = snapshot.firstOrNull { it.role == "assistant" && it.content.isNotBlank() }?.content ?: return
+        val prompt = "用 6-10 个字概括以下对话主题，只返回标题文本，不要引号：\n用户：$firstUser\nAI：${firstAi.take(200)}"
+        val generated = runCatching {
+            repository.chat(
+                messages = listOf(ChatRequest.Message(role = "user", content = prompt)),
+                systemPrompt = TITLE_SYSTEM_PROMPT,
+            ).getOrNull()
+                ?.choices?.firstOrNull()?.message?.content
+                ?.trim()
+                ?.trim('"', '\u201C', '\u201D', '\n', ' ', '。')
+                ?.take(20)
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+        conversationRepository.updateTitle(conversationId, generated ?: firstUser.take(15))
     }
 
     private fun appendToMessage(id: Long, chunk: String) {
@@ -487,5 +519,6 @@ class AiViewModel @Inject constructor(
 
     private companion object {
         const val RECENT_SCORE_LIMIT = 200
+        const val TITLE_SYSTEM_PROMPT = "你是 ScoreTrace 的会话标题助手，只输出简洁的中文标题。"
     }
 }
