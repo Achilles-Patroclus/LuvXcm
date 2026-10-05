@@ -32,6 +32,13 @@ if [ -z "$PHONE_IP" ]; then
 fi
 
 echo "adb: $ADB_BIN"
+
+# 清理幽灵 emulator-* 设备，避免后续 adb 命令必须用 -s 指定目标
+setsid "$ADB_BIN" devices 2>/dev/null | awk '/^emulator-/{print $1}' | while read -r dev; do
+    echo "清理幽灵设备 $dev"
+    setsid "$ADB_BIN" disconnect "$dev" </dev/null 2>/dev/null
+done
+
 echo "正在连接 $PHONE_IP:$PHONE_PORT ..."
 # adb server 不会自行后台化，必须 setsid 且重定向 stdin，否则命令会一直挂住不返回
 setsid "$ADB_BIN" connect "$PHONE_IP:$PHONE_PORT" </dev/null
@@ -44,3 +51,4 @@ echo ""
 echo "如果上方列表中出现你的设备，说明连接成功。"
 echo "如果显示 unauthorized，请在手机屏幕上确认授权弹窗（勾选「始终允许」）。"
 echo "如果显示 offline，请执行：adb kill-server && adb connect $PHONE_IP:$PHONE_PORT"
+echo "或用一键重连脚本：./tools/adb-reconnect.sh $PHONE_IP $PHONE_PORT"

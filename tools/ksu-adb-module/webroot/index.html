@@ -29,7 +29,10 @@
         <section class="card status-card">
             <div class="status-row">
                 <span class="status-label">ADB 状态</span>
-                <span id="adb-status" class="status-badge loading">检测中...</span>
+                <span class="status-right">
+                    <span id="adb-status" class="status-badge loading">检测中...</span>
+                    <button id="refresh-status" class="btn-mini btn-mini-light">刷新</button>
+                </span>
             </div>
             <div class="status-row">
                 <span class="status-label">监听端口</span>
@@ -38,6 +41,10 @@
             <div class="status-row">
                 <span class="status-label">本机 IP</span>
                 <span id="ip-display" class="status-value">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">最后检查</span>
+                <span id="last-check" class="status-value">--</span>
             </div>
         </section>
 
@@ -68,8 +75,34 @@
 
         <section class="card">
             <button id="restart-adbd" class="btn-primary">重启 ADB 服务</button>
-            <button id="copy-command" class="btn-secondary">复制连接命令</button>
             <button id="view-logs" class="btn-secondary">查看最近日志</button>
+        </section>
+
+        <section class="card">
+            <div class="row">
+                <span class="row-label">ADB 授权管理</span>
+                <button id="refresh-keys" class="btn-mini">刷新</button>
+            </div>
+            <div class="key-info">
+                <span class="status-label">已授权公钥</span>
+                <span id="key-count" class="status-value">-- 个</span>
+            </div>
+            <textarea id="key-input" class="key-input" rows="3"
+                      placeholder="在此粘贴 ADB 公钥（QAAAA... 或 ssh-rsa ...）"></textarea>
+            <button id="add-key" class="btn-secondary">添加公钥</button>
+            <button id="clear-keys" class="btn-danger">清空全部授权</button>
+        </section>
+
+        <section class="card">
+            <div class="row">
+                <span class="row-label">连接诊断</span>
+            </div>
+            <div class="key-info">
+                <span class="status-label">在容器中执行</span>
+            </div>
+            <pre id="conn-cmd" class="conn-cmd">adb connect &lt;IP&gt;:5555</pre>
+            <button id="copy-conn" class="btn-secondary">复制连接命令</button>
+            <p id="diag-hint" class="diag-hint">点「刷新」获取状态诊断。</p>
         </section>
 
         <section class="card logs-card hidden" id="logs-section">
@@ -81,7 +114,7 @@
         </section>
 
         <footer class="footer">
-            <p>ScoreTrace ADB Module v1.0</p>
+            <p>ScoreTrace ADB Module v2.0</p>
         </footer>
     </div>
     <script src="script.js"></script>

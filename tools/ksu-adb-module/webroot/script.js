@@ -1,11 +1,11 @@
-// ScoreTrace ADB 控制面板
+// ScoreTrace ADB 控制面板 v2.0
 //
 // 兼容两代 KernelSU WebUI API：
 //   1) 新版（KernelSU ≥ 1.0，npm 包 kernelsu）：import { exec, toast } from 'kernelsu'
 //      exec 返回 Promise<{errno, stdout, stderr}>
-//   2) 旧版（全局 ksu 对象）：ksu.exec(cmd) 同步返回字符串，
-//      或 ksu.exec(cmd, "回调名") 异步 + 全局具名回调 (exitCode, stdout, stderr)
-// 通过动态 import 优先用新版，失败再回退旧版。
+//   2) 旧版（全局 ksu 对象）：ksu.exec(cmd, cbName) + 全局具名回调 (exitCode, stdout, stderr)
+//      （WebUI-Next 也支持 ksu.exec(cmd) 同步返回字符串）
+// 统一用「动态 import 新版 → 回退全局 ksu」的双路桥接，且旧版只调用一次，避免副作用重复。
 
 (function () {
     'use strict';
@@ -15,6 +15,7 @@
 
     var ksuModule = null;
     var ksuChecked = false;
+    var lastListening = null;
 
     async function loadKsuModule() {
         if (ksuChecked) return ksuModule;
@@ -28,29 +29,35 @@
         return ksuModule;
     }
 
+    // 旧版全局 ksu：只调用一次。传回调名，兼容异步实现；若实现直接返回字符串则直接用。
     function legacyExec(cmd) {
         return new Promise(function (resolve) {
             if (typeof ksu === 'undefined' || typeof ksu.exec !== 'function') {
                 resolve('');
                 return;
             }
-            // 旧版同步形式：直接返回输出字符串
-            try {
-                var out = ksu.exec(cmd);
-                if (typeof out === 'string') { resolve(out); return; }
-            } catch (e) { /* 不是同步形式，继续尝试异步形式 */ }
+            var done = false;
+            function finish(v) { if (!done) { done = true; resolve(v == null ? '' : v); } }
 
-            // 旧版异步形式：需要全局具名回调
             var cbName = 'ksu_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-            window[cbName] = function (exitCode, stdout) {
+            window[cbName] = function (code, stdout) {
                 try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
-                resolve(stdout || '');
+                finish(stdout);
             };
+
+            var out;
             try {
-                ksu.exec(cmd, cbName);
+                out = ksu.exec(cmd, cbName);
             } catch (e) {
-                resolve('');
+                finish('');
+                return;
             }
+            if (typeof out === 'string') {
+                finish(out);
+                return;
+            }
+            // 异步形式：等回调，最多 8 秒
+            setTimeout(function () { finish(''); }, 8000);
         });
     }
 
@@ -77,10 +84,10 @@
         el.className = 'toast';
         el.textContent = msg;
         document.body.appendChild(el);
-        setTimeout(function () { el.remove(); }, 2000);
+        setTimeout(function () { if (el.parentNode) el.remove(); }, 2500);
     }
 
-    function parseKeyValues(text) {
+    function parseKV(text) {
         var out = {};
         (text || '').split('\n').forEach(function (line) {
             var i = line.indexOf('=');
@@ -89,26 +96,9 @@
         return out;
     }
 
-    async function refreshStatus() {
-        var badge = document.getElementById('adb-status');
-        var portDisplay = document.getElementById('port-display');
-        var ipDisplay = document.getElementById('ip-display');
-
-        var info = parseKeyValues(await runConfig('status'));
-        var port = info.PORT || '--';
-        var listening = info.LISTENING === '1';
-
-        portDisplay.textContent = port;
-        ipDisplay.textContent = info.IP || '--';
-        badge.textContent = listening ? '运行中' : '已停止';
-        badge.className = 'status-badge ' + (listening ? 'online' : 'offline');
-    }
-
-    async function loadConfig() {
-        var cfg = parseKeyValues(await runConfig('get'));
-        document.getElementById('toggle-enabled').checked = cfg.ENABLED === 'true';
-        document.getElementById('toggle-autostart').checked = cfg.AUTOSTART === 'true';
-        document.getElementById('port-input').value = cfg.PORT || 5555;
+    // 安全的单引号 shell 引用，供把公钥作为参数传给 config.sh
+    function shQuote(s) {
+        return "'" + String(s).replace(/'/g, "'\\''") + "'";
     }
 
     async function copyText(text) {
@@ -133,14 +123,66 @@
         }
     }
 
+    async function refreshStatus() {
+        var info = parseKV(await runConfig('status'));
+        var listening = info.LISTENING === '1';
+        var port = info.PORT || '5555';
+        var ip = info.IP && info.IP !== 'unknown' ? info.IP : '';
+
+        var badge = document.getElementById('adb-status');
+        badge.textContent = listening ? '运行中' : '已停止';
+        badge.className = 'status-badge ' + (listening ? 'online' : 'offline');
+
+        document.getElementById('port-display').textContent = info.PORT || '--';
+        document.getElementById('ip-display').textContent = info.IP || '--';
+        document.getElementById('last-check').textContent = info.LAST_CHECK || '--';
+
+        var cmd = 'adb connect ' + (ip || '<在WebUI顶部查看IP>') + ':' + port;
+        document.getElementById('conn-cmd').textContent = cmd;
+
+        var hint;
+        if (listening) {
+            hint = '手机端已就绪。在容器执行上面的命令即可连接；首次连接需在手机弹窗中点「始终允许」。\n' +
+                   '若显示 unauthorized：手机上确认授权弹窗；若 offline：容器执行 adb kill-server 后重连。';
+        } else {
+            hint = 'adbd 未在端口 ' + port + ' 监听：点上方「重启 ADB 服务」，或检查该端口是否被占用。';
+        }
+        document.getElementById('diag-hint').textContent = hint;
+
+        if (lastListening !== null && lastListening !== listening) {
+            toast(listening ? 'ADB 已开始监听' : 'ADB 已停止监听');
+        }
+        lastListening = listening;
+    }
+
+    async function loadConfig() {
+        var cfg = parseKV(await runConfig('get'));
+        document.getElementById('toggle-enabled').checked = cfg.ENABLED === 'true';
+        document.getElementById('toggle-autostart').checked = cfg.AUTOSTART === 'true';
+        document.getElementById('port-input').value = cfg.PORT || 5555;
+    }
+
+    async function refreshKeys() {
+        var info = parseKV(await runConfig('keys-count'));
+        var n = parseInt(info.COUNT, 10);
+        document.getElementById('key-count').textContent = (isNaN(n) ? '--' : n) + ' 个';
+    }
+
     document.addEventListener('DOMContentLoaded', async function () {
         await loadConfig();
         await refreshStatus();
+        await refreshKeys();
+
+        document.getElementById('refresh-status').addEventListener('click', async function () {
+            toast('正在刷新...');
+            await refreshStatus();
+        });
 
         document.getElementById('toggle-enabled').addEventListener('change', async function (e) {
             var value = e.target.checked ? 'true' : 'false';
             await runConfig('set ENABLED ' + value);
             toast(value === 'true' ? '已启用 ADB' : '已禁用 ADB');
+            await refreshStatus();
         });
 
         document.getElementById('toggle-autostart').addEventListener('change', async function (e) {
@@ -164,14 +206,7 @@
         document.getElementById('restart-adbd').addEventListener('click', async function () {
             toast('正在重启 ADB 服务...');
             await runConfig('restart');
-            setTimeout(refreshStatus, 1500);
-        });
-
-        document.getElementById('copy-command').addEventListener('click', async function () {
-            var info = parseKeyValues(await runConfig('status'));
-            var cmd = 'adb connect ' + (info.IP || '') + ':' + (info.PORT || '5555');
-            var ok = await copyText(cmd);
-            toast(ok ? '已复制：' + cmd : cmd);
+            await refreshStatus();
         });
 
         document.getElementById('view-logs').addEventListener('click', async function () {
@@ -182,6 +217,50 @@
 
         document.getElementById('close-logs').addEventListener('click', function () {
             document.getElementById('logs-section').classList.add('hidden');
+        });
+
+        document.getElementById('refresh-keys').addEventListener('click', async function () {
+            await refreshKeys();
+            toast('授权列表已刷新');
+        });
+
+        document.getElementById('add-key').addEventListener('click', async function () {
+            var input = document.getElementById('key-input');
+            var key = (input.value || '').trim().replace(/\s+/g, ' ');
+            if (!key) { toast('请先粘贴 ADB 公钥'); return; }
+            var out = await runConfig('keys-add ' + shQuote(key));
+            toast(out || '已添加');
+            if (out.indexOf('ERROR') === 0) return;
+            input.value = '';
+            await refreshKeys();
+        });
+
+        // 两段式确认清空，避免依赖 WebView 里可能被禁用的 window.confirm
+        var clearArmed = false;
+        var clearTimer = null;
+        document.getElementById('clear-keys').addEventListener('click', async function () {
+            var btn = document.getElementById('clear-keys');
+            if (!clearArmed) {
+                clearArmed = true;
+                btn.textContent = '再点一次确认清空';
+                clearTimer = setTimeout(function () {
+                    clearArmed = false;
+                    btn.textContent = '清空全部授权';
+                }, 3000);
+                return;
+            }
+            clearTimeout(clearTimer);
+            clearArmed = false;
+            btn.textContent = '清空全部授权';
+            var out = await runConfig('keys-clear');
+            toast(out || '已清空');
+            await refreshKeys();
+        });
+
+        document.getElementById('copy-conn').addEventListener('click', async function () {
+            var cmd = document.getElementById('conn-cmd').textContent;
+            var ok = await copyText(cmd);
+            toast(ok ? '已复制：' + cmd : cmd);
         });
 
         setInterval(refreshStatus, 5000);
