@@ -1,0 +1,6 @@
+id=scoretrace_adb_autostart
+name=ScoreTrace ADB 调试通道
+version=v1.0
+versionCode=1
+author=ScoreTrace
+description=开机自动在指定端口启动 adbd，供 AiCode 容器调试。支持 WebUI 控制面板。

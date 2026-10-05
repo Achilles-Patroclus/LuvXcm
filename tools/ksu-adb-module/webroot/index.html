@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ScoreTrace ADB 控制面板</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 48 48">
+                    <defs>
+                        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#4A90E2"/>
+                            <stop offset="100%" stop-color="#2ECC71"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M6.4,9.7C11.9,9.7 17.4,14.1 24,24C30.6,33.9 36.1,38.3 41.6,38.3"
+                          fill="none" stroke="url(#grad)" stroke-width="3.6" stroke-linecap="round"/>
+                    <path d="M6.4,38.3C11.9,38.3 17.4,33.9 24,24C30.6,14.1 36.1,9.7 41.6,9.7"
+                          fill="none" stroke="url(#grad)" stroke-width="3.6" stroke-linecap="round"/>
+                </svg>
+                <h1>ScoreTrace ADB</h1>
+            </div>
+        </header>
+
+        <section class="card status-card">
+            <div class="status-row">
+                <span class="status-label">ADB 状态</span>
+                <span id="adb-status" class="status-badge loading">检测中...</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">监听端口</span>
+                <span id="port-display" class="status-value">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">本机 IP</span>
+                <span id="ip-display" class="status-value">--</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="row">
+                <span class="row-label">开机自启</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-autostart">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="row">
+                <span class="row-label">ADB 总开关</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-enabled">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="row">
+                <span class="row-label">端口号</span>
+                <input type="number" id="port-input" value="5555" min="1024" max="65535">
+            </div>
+            <button id="save-port" class="btn-primary">保存并应用</button>
+        </section>
+
+        <section class="card">
+            <button id="restart-adbd" class="btn-primary">重启 ADB 服务</button>
+            <button id="copy-command" class="btn-secondary">复制连接命令</button>
+            <button id="view-logs" class="btn-secondary">查看最近日志</button>
+        </section>
+
+        <section class="card logs-card hidden" id="logs-section">
+            <div class="row">
+                <span class="row-label">模块日志</span>
+                <button id="close-logs" class="btn-close">&times;</button>
+            </div>
+            <pre id="logs-content"></pre>
+        </section>
+
+        <footer class="footer">
+            <p>ScoreTrace ADB Module v1.0</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
