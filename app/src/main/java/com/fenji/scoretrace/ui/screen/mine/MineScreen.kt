@@ -1,22 +1,39 @@
 package com.fenji.scoretrace.ui.screen.mine
 
 import android.content.ClipData
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.ClipEntry
@@ -38,6 +55,7 @@ import com.fenji.scoretrace.ui.component.mine.SettingSwitchItem
 import com.fenji.scoretrace.ui.component.mine.UserProfileCard
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.AppToast
+import com.fenji.scoretrace.util.Constants
 import kotlinx.coroutines.launch
 
 private val GraySlate = Color(0xFF64748B)
@@ -57,6 +75,7 @@ fun MineScreen(
     val networkIp by viewModel.networkIp.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -100,8 +119,8 @@ fun MineScreen(
                     icon = painterResource(R.drawable.ic_subject),
                     iconBgColor = ScoreTraceColors.SchoolPurple,
                     title = "选科配置",
-                    value = state.selectedSubjects.joinToString(" · "),
-                    onClick = { /* TODO 选科配置页 */ },
+                    value = state.selectedSubjects.joinToString(" · ").ifBlank { "未设置" },
+                    onClick = { showSubjectDialog = true },
                 )
             }
 
@@ -223,4 +242,106 @@ fun MineScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+
+    if (showSubjectDialog) {
+        SubjectSelectionDialog(
+            current = state.selectedSubjects,
+            onDismiss = { showSubjectDialog = false },
+            onConfirm = { selected ->
+                viewModel.updateSelectedSubjects(selected)
+                showSubjectDialog = false
+            },
+        )
+    }
 }
+
+/** 选科配置对话框：新高考 3+1+2 —— 首选二选一，再选四选二。 */
+@Composable
+private fun SubjectSelectionDialog(
+    current: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<String>) -> Unit,
+) {
+    var primary by remember {
+        mutableStateOf(Constants.PRIMARY_SUBJECT_NAMES.firstOrNull { it in current })
+    }
+    val secondary = remember {
+        mutableStateListOf<String>().apply {
+            addAll(Constants.SECONDARY_SUBJECT_NAMES.filter { it in current })
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选科配置") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("首选科目（二选一）", style = MaterialTheme.typography.labelLarge)
+                Constants.PRIMARY_SUBJECT_NAMES.forEach { name ->
+                    SelectableSubjectRow(
+                        label = name,
+                        selected = primary == name,
+                        onClick = { primary = name },
+                        radio = true,
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("再选科目（四选二）", style = MaterialTheme.typography.labelLarge)
+                Constants.SECONDARY_SUBJECT_NAMES.forEach { name ->
+                    val selected = name in secondary
+                    SelectableSubjectRow(
+                        label = name,
+                        selected = selected,
+                        onClick = {
+                            if (selected) {
+                                secondary.remove(name)
+                            } else if (secondary.size < SECONDARY_PICK_COUNT) {
+                                secondary.add(name)
+                            }
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = primary != null && secondary.size == SECONDARY_PICK_COUNT,
+                onClick = {
+                    val ordered = Constants.SECONDARY_SUBJECT_NAMES.filter { it in secondary }
+                    onConfirm(listOfNotNull(primary) + ordered)
+                },
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun SelectableSubjectRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    radio: Boolean = false,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (radio) {
+            RadioButton(selected = selected, onClick = onClick)
+        } else {
+            Checkbox(checked = selected, onCheckedChange = { onClick() })
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, fontSize = 15.sp, color = ScoreTraceColors.TextPrimaryLight)
+    }
+}
+
+/** 3+1+2 中「再选」需选定的科目数 */
+private const val SECONDARY_PICK_COUNT = 2

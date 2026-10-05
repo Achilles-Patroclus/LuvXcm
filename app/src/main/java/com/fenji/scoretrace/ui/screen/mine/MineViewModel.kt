@@ -40,8 +40,8 @@ data class MineUiState(
     val autoPlayMusic: Boolean = true,
     /** 字体大小档位（占位，后续全局生效） */
     val fontSize: String = "标准",
-    /** 选科配置（占位，后续接选科配置页） */
-    val selectedSubjects: List<String> = listOf("物理", "化学", "生物"),
+    /** 当前选科（3+1+2：1 门首选 + 2 门再选），来自 UserPreferences */
+    val selectedSubjects: List<String> = emptyList(),
 )
 
 @HiltViewModel
@@ -64,15 +64,23 @@ class MineViewModel @Inject constructor(
         combine(
             scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
             studyTaskRepository.observeTasks(null),
-        ) { scores, tasks -> scores.size to tasks.count { it.isCompleted } },
+            userPreferences.selectedSubjects,
+        ) { scores, tasks, subjects ->
+            MineStats(
+                scoreCount = scores.size,
+                taskCompletedCount = tasks.count { it.isCompleted },
+                selectedSubjects = subjects,
+            )
+        },
     ) { darkTheme, autoPlayMusic, gaokaoTimestamp, targetSchool, stats ->
         MineUiState(
             isLoading = false,
             examYear = examYearOf(gaokaoTimestamp),
             gaokaoDateText = DateUtils.formatDate(Date(gaokaoTimestamp)),
             targetSchool = targetSchool?.schoolName.orEmpty(),
-            scoreRecordCount = stats.first,
-            taskCompletedCount = stats.second,
+            scoreRecordCount = stats.scoreCount,
+            taskCompletedCount = stats.taskCompletedCount,
+            selectedSubjects = stats.selectedSubjects,
             darkTheme = darkTheme,
             autoPlayMusic = autoPlayMusic,
         )
@@ -94,6 +102,11 @@ class MineViewModel @Inject constructor(
         viewModelScope.launch { userPreferences.setAutoPlayMusic(value) }
     }
 
+    /** 保存选科（1 门首选 + 2 门再选），持久化到 UserPreferences。 */
+    fun updateSelectedSubjects(subjects: List<String>) {
+        viewModelScope.launch { userPreferences.setSelectedSubjects(subjects) }
+    }
+
     fun refreshNetworkIp() {
         viewModelScope.launch {
             _networkIp.value = IP_LOADING
@@ -105,6 +118,12 @@ class MineViewModel @Inject constructor(
         Calendar.getInstance().apply { timeInMillis = gaokaoTimestamp }
             .get(Calendar.YEAR)
             .toString()
+
+    private data class MineStats(
+        val scoreCount: Int,
+        val taskCompletedCount: Int,
+        val selectedSubjects: List<String>,
+    )
 
     private companion object {
         const val RECENT_SCORE_LIMIT = 100
