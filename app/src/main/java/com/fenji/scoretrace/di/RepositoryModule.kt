@@ -1,20 +1,24 @@
 package com.fenji.scoretrace.di
 
+import com.fenji.scoretrace.data.repository.DefaultConversationRepository
 import com.fenji.scoretrace.data.repository.DefaultExamRecordRepository
 import com.fenji.scoretrace.data.repository.DefaultMajorRepository
 import com.fenji.scoretrace.data.repository.DefaultNetworkRepository
 import com.fenji.scoretrace.data.repository.DefaultNotificationRepository
 import com.fenji.scoretrace.data.repository.DefaultSchoolRepository
 import com.fenji.scoretrace.data.repository.DefaultScoreRecordRepository
+import com.fenji.scoretrace.data.repository.DefaultStudySessionRepository
 import com.fenji.scoretrace.data.repository.DefaultStudyTaskRepository
 import com.fenji.scoretrace.data.repository.DefaultSubjectRepository
 import com.fenji.scoretrace.data.repository.DefaultTargetSchoolRepository
+import com.fenji.scoretrace.data.repository.ConversationRepository
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
 import com.fenji.scoretrace.data.repository.MajorRepository
 import com.fenji.scoretrace.data.repository.NetworkRepository
 import com.fenji.scoretrace.data.repository.NotificationRepository
 import com.fenji.scoretrace.data.repository.SchoolRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
+import com.fenji.scoretrace.data.repository.StudySessionRepository
 import com.fenji.scoretrace.data.repository.StudyTaskRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
@@ -32,6 +36,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindStudyTaskRepository(impl: DefaultStudyTaskRepository): StudyTaskRepository
+
+    @Binds
+    abstract fun bindStudySessionRepository(impl: DefaultStudySessionRepository): StudySessionRepository
 
     @Binds
     abstract fun bindScoreRecordRepository(impl: DefaultScoreRecordRepository): ScoreRecordRepository
@@ -53,4 +60,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindNotificationRepository(impl: DefaultNotificationRepository): NotificationRepository
+
+    @Binds
+    abstract fun bindConversationRepository(impl: DefaultConversationRepository): ConversationRepository
 }

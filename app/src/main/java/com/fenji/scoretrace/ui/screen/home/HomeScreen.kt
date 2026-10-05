@@ -59,7 +59,6 @@ import com.fenji.scoretrace.ui.music.component.MusicFloatingPanel
 import com.fenji.scoretrace.ui.music.component.MusicPlaylistSheet
 import com.fenji.scoretrace.ui.theme.Dimens
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
-import com.fenji.scoretrace.util.AppToast
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
@@ -73,6 +72,7 @@ fun HomeScreen(
     onOpenTargetSchool: () -> Unit = {},
     onOpenAiScore: () -> Unit = {},
     onOpenNotification: () -> Unit = {},
+    onOpenTimer: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -150,6 +150,7 @@ fun HomeScreen(
         onNotificationClick = onOpenNotification,
         onDetailClick = onOpenScore,
         onOpenAiScore = onOpenAiScore,
+        onOpenTimer = onOpenTimer,
     )
 
     val targetSchoolToDelete = state.targetSchool
@@ -274,6 +275,7 @@ private fun HomeScreenContent(
     onNotificationClick: () -> Unit,
     onDetailClick: () -> Unit,
     onOpenAiScore: () -> Unit,
+    onOpenTimer: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -371,7 +373,8 @@ private fun HomeScreenContent(
                             label = "学习计时器",
                             icon = painterResource(R.drawable.ic_timer),
                             color = ScoreTraceColors.QuickActionGreen,
-                        ) { AppToast.info("功能开发中") },
+                            onClick = onOpenTimer,
+                        ),
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )

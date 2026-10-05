@@ -6,14 +6,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatRequest
+import com.fenji.scoretrace.data.repository.ConversationRepository
 import com.fenji.scoretrace.data.repository.DeepSeekRepository
 import com.fenji.scoretrace.util.AppToast
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +36,13 @@ data class ChatMessage(
     val isStreaming: Boolean = false,
 )
 
+/** 历史对话列表项 */
+data class ConversationItem(
+    val id: Long,
+    val title: String,
+    val updatedAt: Long,
+)
+
 /** 快捷入口定义 */
 data class AiQuickAction(
     val id: String,
@@ -45,6 +57,7 @@ data class AiQuickAction(
 @HiltViewModel
 class AiViewModel @Inject constructor(
     private val repository: DeepSeekRepository,
+    private val conversationRepository: ConversationRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AiUiState())
@@ -56,8 +69,17 @@ class AiViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    /** 历史对话列表（按最近消息时间倒序） */
+    val conversations: StateFlow<List<ConversationItem>> =
+        conversationRepository.observeConversations()
+            .map { list -> list.map { ConversationItem(it.id, it.title, it.updatedAt) } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private var nextMessageId = 0L
     private var streamJob: Job? = null
+
+    /** 当前会话 id；null 表示尚未落库的新对话（首条提问时创建） */
+    private var currentConversationId: Long? = null
 
     /** 六个快捷入口 */
     val quickActions: List<AiQuickAction> = listOf(
@@ -125,7 +147,7 @@ class AiViewModel @Inject constructor(
         sendMessage(_uiState.value.inputText)
     }
 
-    /** 发送一条消息：追加用户消息 + 空的 AI 消息，随后流式填充。 */
+    /** 发送一条消息：追加用户消息 + 空的 AI 消息，随后流式填充；并自动落库到当前会话。 */
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _isLoading.value) return
@@ -148,6 +170,8 @@ class AiViewModel @Inject constructor(
             .map { ChatRequest.Message(role = it.role, content = it.content) }
 
         streamJob = viewModelScope.launch {
+            val conversationId = ensureConversation(trimmed)
+            conversationRepository.addMessage(conversationId, "user", trimmed)
             try {
                 repository.chatStream(history).collect { chunk ->
                     if (chunk.isEmpty()) {
@@ -175,6 +199,7 @@ class AiViewModel @Inject constructor(
                 }
                 _isLoading.value = false
             }
+            persistAssistantMessage(conversationId, assistantId)
         }
     }
 
@@ -192,17 +217,67 @@ class AiViewModel @Inject constructor(
     fun onNewChat() {
         streamJob?.cancel()
         streamJob = null
+        currentConversationId = null
         _messages.value = emptyList()
         _isLoading.value = false
         _uiState.value = AiUiState()
+    }
+
+    /** 载入某个历史会话，恢复聊天上下文。 */
+    fun loadConversation(id: Long) {
+        streamJob?.cancel()
+        streamJob = null
+        _isLoading.value = false
+        _uiState.value = AiUiState()
+        currentConversationId = id
+        viewModelScope.launch {
+            val rows = conversationRepository.observeMessages(id).first()
+            _messages.value = rows.map { ChatMessage(it.id, it.role, it.content, isStreaming = false) }
+            nextMessageId = (rows.maxOfOrNull { it.id } ?: 0L) + 1
+        }
+    }
+
+    /** 删除某个历史会话。 */
+    fun deleteConversation(id: Long) {
+        viewModelScope.launch {
+            conversationRepository.deleteConversation(id)
+            if (currentConversationId == id) {
+                currentConversationId = null
+                _messages.value = emptyList()
+            }
+        }
+    }
+
+    /** 清空全部历史会话。 */
+    fun clearAllConversations() {
+        viewModelScope.launch {
+            conversationRepository.clearAll()
+            currentConversationId = null
+            _messages.value = emptyList()
+        }
     }
 
     /** 点击加号（上传/拍照）：当前无操作，待接入拍照识别成绩单 */
     fun onAddClick() {
     }
 
-    /** 历史记录 */
-    fun onHistoryClick() {
+    private suspend fun ensureConversation(titleSeed: String): Long {
+        val existing = currentConversationId
+        if (existing != null) {
+            conversationRepository.touchConversation(existing)
+            return existing
+        }
+        val id = conversationRepository.createConversation(titleSeed.take(20))
+        currentConversationId = id
+        return id
+    }
+
+    private suspend fun persistAssistantMessage(conversationId: Long, assistantId: Long) {
+        val content = _messages.value.firstOrNull { it.id == assistantId }?.content.orEmpty()
+        if (content.isNotBlank()) {
+            conversationRepository.addMessage(conversationId, "assistant", content)
+            conversationRepository.touchConversation(conversationId)
+        }
     }
 
     private fun appendToMessage(id: Long, chunk: String) {

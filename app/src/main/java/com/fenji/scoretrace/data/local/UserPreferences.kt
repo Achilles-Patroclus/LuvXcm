@@ -69,7 +69,7 @@ class UserPreferences @Inject constructor(
         }
     }
 
-    /** 今日 AI 重点文案（缓存，当天只生成一次） */
+    /** 今日 AI 重点文案（缓存） */
     val aiFocus: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_AI_FOCUS]
     }
@@ -79,18 +79,16 @@ class UserPreferences @Inject constructor(
         preferences[KEY_AI_FOCUS_DATE]
     }
 
-    suspend fun saveAiFocus(text: String, date: String) {
+    /** 生成该 AI 重点时的数据指纹（成绩 + 目标院校）；与当前指纹不一致即视为缓存失效。 */
+    val aiFocusSignal: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AI_FOCUS_SIGNAL]
+    }
+
+    suspend fun saveAiFocus(text: String, date: String, signal: String) {
         context.dataStore.edit { preferences ->
             preferences[KEY_AI_FOCUS] = text
             preferences[KEY_AI_FOCUS_DATE] = date
-        }
-    }
-
-    /** 清除今日 AI 重点缓存（成绩 / 目标院校变化时调用，强制下次重新生成）。 */
-    suspend fun clearAiFocus() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(KEY_AI_FOCUS)
-            preferences.remove(KEY_AI_FOCUS_DATE)
+            preferences[KEY_AI_FOCUS_SIGNAL] = signal
         }
     }
 
@@ -101,6 +99,7 @@ class UserPreferences @Inject constructor(
         val KEY_SELECTED_SUBJECTS = stringPreferencesKey("selected_subjects")
         val KEY_AI_FOCUS = stringPreferencesKey("ai_focus")
         val KEY_AI_FOCUS_DATE = stringPreferencesKey("ai_focus_date")
+        val KEY_AI_FOCUS_SIGNAL = stringPreferencesKey("ai_focus_signal")
 
         const val SUBJECT_SEPARATOR = ","
         const val DEFAULT_SELECTED_SUBJECTS = "物理,化学,生物"

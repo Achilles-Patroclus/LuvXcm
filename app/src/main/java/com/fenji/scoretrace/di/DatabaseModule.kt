@@ -6,9 +6,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fenji.scoretrace.data.local.ScoreTraceDatabase
+import com.fenji.scoretrace.data.local.dao.ConversationDao
 import com.fenji.scoretrace.data.local.dao.ExamRecordDao
 import com.fenji.scoretrace.data.local.dao.NotificationDao
 import com.fenji.scoretrace.data.local.dao.ScoreRecordDao
+import com.fenji.scoretrace.data.local.dao.StudySessionDao
 import com.fenji.scoretrace.data.local.dao.StudyTaskDao
 import com.fenji.scoretrace.data.local.dao.SubjectDao
 import com.fenji.scoretrace.data.local.dao.TargetSchoolDao
@@ -83,11 +85,59 @@ object DatabaseModule {
         }
     }
 
+    /** 新增学习计时记录表。建表 SQL 与 Room 生成的 `study_sessions` 语句逐字一致。 */
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `study_sessions` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`startedAt` INTEGER NOT NULL, " +
+                    "`durationSeconds` INTEGER NOT NULL, " +
+                    "`type` TEXT NOT NULL)"
+            )
+        }
+    }
+
+    /**
+     * 新增 AI 历史对话表：conversations + chat_messages（含 conversationId 索引）。
+     * 建表/建索引 SQL 与 Room 生成语句逐字一致。
+     */
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `conversations` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`title` TEXT NOT NULL, " +
+                    "`createdAt` INTEGER NOT NULL, " +
+                    "`updatedAt` INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `chat_messages` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`conversationId` INTEGER NOT NULL, " +
+                    "`role` TEXT NOT NULL, " +
+                    "`content` TEXT NOT NULL, " +
+                    "`timestamp` INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_chat_messages_conversationId` " +
+                    "ON `chat_messages` (`conversationId`)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): ScoreTraceDatabase =
         Room.databaseBuilder(context, ScoreTraceDatabase::class.java, Constants.DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+            )
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
@@ -123,6 +173,16 @@ object DatabaseModule {
     @Singleton
     fun provideNotificationDao(database: ScoreTraceDatabase): NotificationDao =
         database.notificationDao()
+
+    @Provides
+    @Singleton
+    fun provideStudySessionDao(database: ScoreTraceDatabase): StudySessionDao =
+        database.studySessionDao()
+
+    @Provides
+    @Singleton
+    fun provideConversationDao(database: ScoreTraceDatabase): ConversationDao =
+        database.conversationDao()
 
     /** 建库时写入默认科目，避免首屏空白 */
     private fun seedDefaultSubjects(db: SupportSQLiteDatabase) {

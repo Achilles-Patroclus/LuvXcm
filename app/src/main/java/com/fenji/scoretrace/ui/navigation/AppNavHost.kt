@@ -11,8 +11,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -49,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -59,6 +62,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.music.MusicPlayerViewModel
+import com.fenji.scoretrace.ui.screen.ai.AiHistoryScreen
 import com.fenji.scoretrace.ui.screen.ai.AiScreen
 import com.fenji.scoretrace.ui.screen.home.HomeScreen
 import com.fenji.scoretrace.ui.screen.mine.MineScreen
@@ -69,6 +73,7 @@ import com.fenji.scoretrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreScreenNew
 import com.fenji.scoretrace.ui.screen.settings.SettingsScreen
 import com.fenji.scoretrace.ui.screen.subject.SubjectConfigScreen
+import com.fenji.scoretrace.ui.screen.timer.StudyTimerScreen
 import com.fenji.scoretrace.util.AppToast
 
 /**
@@ -78,6 +83,7 @@ import com.fenji.scoretrace.util.AppToast
  * 过渡动画：底部 Tab 之间用淡入淡出（[tabEnter]/[tabExit]），二级页面用水平滑动（NavHost 默认）。
  * 根 Scaffold 同时承载全局 Snackbar（[AppToast] 的宿主）。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
@@ -85,6 +91,8 @@ fun AppNavHost(
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    // 键盘弹出时隐藏底栏，让 AI 输入框紧贴键盘（配合 AiScreen 的 imePadding）
+    val imeVisible = WindowInsets.isImeVisible
     // 首页悬浮音乐面板状态提升到此处：点击任意底部 Tab 时一并收起（面板是跨 Tab 的全局浮层）
     var showMusicPanel by rememberSaveable { mutableStateOf(false) }
     // 全屏页（设计稿无底部导航栏）：成绩详情、目标院校、AI录成绩、通知中心均隐藏底栏
@@ -92,7 +100,10 @@ fun AppNavHost(
         currentRoute == Screen.TargetSchool.route ||
         currentRoute == Screen.AiScoreInput.route ||
         currentRoute == Screen.Notifications.route ||
-        currentRoute == Screen.SubjectConfig.route
+        currentRoute == Screen.SubjectConfig.route ||
+        currentRoute == Screen.StudyTimer.route ||
+        currentRoute == Screen.AiHistory.route ||
+        (currentRoute == Screen.AI.route && imeVisible)
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(snackbarHostState) { AppToast.attach(snackbarHostState) }
@@ -190,6 +201,7 @@ fun AppNavHost(
                     onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
                     onOpenAiScore = { navController.navigate(Screen.AiScoreInput.route) },
                     onOpenNotification = { navController.navigate(Screen.Notifications.route) },
+                    onOpenTimer = { navController.navigate(Screen.StudyTimer.route) },
                 )
             }
             composable(
@@ -198,7 +210,23 @@ fun AppNavHost(
                 exitTransition = { tabExit() },
                 popEnterTransition = { tabEnter() },
                 popExitTransition = { tabExit() },
-            ) { AiScreen() }
+            ) { entry ->
+                val loadConversationId by entry.savedStateHandle
+                    .getStateFlow(KEY_LOAD_CONVERSATION, -1L)
+                    .collectAsStateWithLifecycle()
+                val newChatTick by entry.savedStateHandle
+                    .getStateFlow(KEY_NEW_CHAT, 0L)
+                    .collectAsStateWithLifecycle()
+                AiScreen(
+                    onOpenHistory = { navController.navigate(Screen.AiHistory.route) },
+                    loadConversationId = loadConversationId,
+                    newChatTick = newChatTick,
+                    onCommandConsumed = {
+                        entry.savedStateHandle[KEY_LOAD_CONVERSATION] = -1L
+                        entry.savedStateHandle[KEY_NEW_CHAT] = 0L
+                    },
+                )
+            }
             composable(
                 route = Screen.Score.route,
                 enterTransition = { tabEnter() },
@@ -248,6 +276,24 @@ fun AppNavHost(
             composable(Screen.Notifications.route) {
                 NotificationScreen(onBack = { navController.popBackStack() })
             }
+            composable(Screen.StudyTimer.route) {
+                StudyTimerScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AiHistory.route) {
+                AiHistoryScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenConversation = { id ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle?.set(KEY_LOAD_CONVERSATION, id)
+                        navController.popBackStack()
+                    },
+                    onNewChat = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle?.set(KEY_NEW_CHAT, System.currentTimeMillis())
+                        navController.popBackStack()
+                    },
+                )
+            }
             composable(Screen.SubjectConfig.route) {
                 SubjectConfigScreen(
                     onBack = { navController.popBackStack() },
@@ -258,6 +304,9 @@ fun AppNavHost(
         }
     }
 }
+
+private const val KEY_LOAD_CONVERSATION = "loadConversationId"
+private const val KEY_NEW_CHAT = "newChatTick"
 
 /** 底部 Tab 统一的切换逻辑：单栈、保留各 Tab 的滚动位置。 */
 private fun NavHostController.navigateToTab(screen: Screen) {

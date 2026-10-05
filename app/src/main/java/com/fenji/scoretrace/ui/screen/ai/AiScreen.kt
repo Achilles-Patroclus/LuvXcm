@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,23 +32,47 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 /**
  * AI 助手页面。
  * 顶部标题栏与底部输入栏固定：无消息时中间为欢迎区 + 快捷入口；有消息时中间为对话列表（流式追加）。
+ *
+ * 根布局加 [imePadding] 并在键盘弹出时隐藏底栏（见 AppNavHost），使输入框紧贴键盘、列表自适应缩放。
  */
 @Composable
 fun AiScreen(
+    onOpenHistory: () -> Unit = {},
+    loadConversationId: Long = -1L,
+    newChatTick: Long = 0L,
+    onCommandConsumed: () -> Unit = {},
     viewModel: AiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
+    // 从历史对话页返回时：加载选中的会话 / 开启新对话
+    LaunchedEffect(loadConversationId) {
+        if (loadConversationId > 0L) {
+            viewModel.loadConversation(loadConversationId)
+            onCommandConsumed()
+        }
+    }
+    LaunchedEffect(newChatTick) {
+        if (newChatTick > 0L) {
+            viewModel.onNewChat()
+            onCommandConsumed()
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = ScoreTraceColors.PageBackgroundLight,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+        ) {
             AiTopBar(
                 onNewChat = viewModel::onNewChat,
-                onHistoryClick = viewModel::onHistoryClick,
+                onHistoryClick = onOpenHistory,
             )
 
             if (messages.isEmpty()) {
@@ -98,7 +123,7 @@ private fun WelcomeContent(
     }
 }
 
-/** 对话态：消息气泡列表，新消息自动滚动到底部。 */
+/** 对话态：消息气泡列表，新消息（含流式增量）自动滚动到底部。 */
 @Composable
 private fun ChatList(
     messages: List<ChatMessage>,

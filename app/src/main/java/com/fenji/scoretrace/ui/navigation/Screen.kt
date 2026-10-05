@@ -22,6 +22,12 @@ sealed class Screen(val route: String) {
     /** 选科配置：从「我的」页进入，全屏页 */
     data object SubjectConfig : Screen("subject_config")
 
+    /** 学习计时器：从首页快捷功能进入，全屏页 */
+    data object StudyTimer : Screen("study_timer")
+
+    /** AI 历史对话：从 AI 助手页进入，全屏页 */
+    data object AiHistory : Screen("ai_history")
+
     /** 成绩详情：从成绩页历史记录进入，携带考试 ID */
     data class ScoreDetail(val examId: Long) : Screen(ROUTE) {
         companion object {

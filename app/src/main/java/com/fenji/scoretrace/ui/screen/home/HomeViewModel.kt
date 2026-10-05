@@ -144,21 +144,15 @@ class HomeViewModel @Inject constructor(
     val aiFocus: StateFlow<String> = _aiFocus.asStateFlow()
 
     init {
-        // 今日 AI 重点：首次进入按当天缓存决定是否生成；此后成绩 / 目标院校一变，就清缓存并重新生成。
+        // 今日 AI 重点：数据指纹（成绩 + 目标院校）一变就重新生成。
+        // 指纹随缓存一起持久化，因此跨进程重启也能正确识别「缓存已失效」。
         viewModelScope.launch {
-            var previousSignal: String? = null
             combine(
                 scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
                 targetSchoolRepository.observeLatest(),
             ) { scores, targetSchool -> focusSignal(scores, targetSchool?.schoolName) }
                 .distinctUntilChanged()
-                .collectLatest { signal ->
-                    if (previousSignal != null && signal != previousSignal) {
-                        userPreferences.clearAiFocus()
-                    }
-                    previousSignal = signal
-                    loadOrGenerateAiFocus()
-                }
+                .collectLatest { signal -> loadOrGenerateAiFocus(signal) }
         }
     }
 
@@ -244,24 +238,29 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * 今日 AI 重点：当天已生成但数据未变则直接用缓存；否则调用 DeepSeek 依据最近成绩生成一条，
-     * 写入 DataStore 并生成一条「AI 建议」通知。
+     * 今日 AI 重点：仅当「当天生成过 **且** 数据指纹一致」时才用缓存；否则调用 DeepSeek
+     * 依据最近成绩生成一条，写入 DataStore 并生成一条「AI 建议」通知。
      */
-    private suspend fun loadOrGenerateAiFocus() {
+    private suspend fun loadOrGenerateAiFocus(signal: String) {
         val today = LocalDate.now().toString()
         val cachedDate = userPreferences.aiFocusDate.first()
+        val cachedSignal = userPreferences.aiFocusSignal.first()
         val cached = userPreferences.aiFocus.first()
-        if (cachedDate == today && !cached.isNullOrBlank()) {
+        if (cachedDate == today && cachedSignal == signal && !cached.isNullOrBlank()) {
             _aiFocus.value = cached
             return
         }
         val scoreSummary = buildScoreSummary()
-        val targetSchoolName = targetSchoolRepository.observeLatest().first()?.schoolName
+        val target = targetSchoolRepository.observeLatest().first()
+        val targetText = target?.let {
+            if (it.majorName.isNotBlank()) "${it.schoolName} ${it.majorName}" else it.schoolName
+        } ?: "未设定"
         val prompt = """
-            你是高考备考助手。根据以下最近成绩，给出一条今日学习重点建议（不超过 50 字）：
+            你是高考备考助手。请针对下面这位学生的**真实情况**，给出「今日学习重点」（不超过 50 字）：
             最近成绩：$scoreSummary
-            目标院校：${targetSchoolName ?: "未设定"}
-            要求：指出最需要提升的科目或知识点，给出具体、可执行的行动建议。
+            目标院校：$targetText
+            要求：结合各科得分率，指出最该补的科目/知识点，并给出一条今天就能执行的具体行动；
+            不要泛泛而谈，要引用上面的分数或目标院校。
         """.trimIndent()
         val result = deepSeekRepository.chat(listOf(ChatRequest.Message(role = "user", content = prompt)))
         val focus = result.getOrNull()
@@ -270,7 +269,7 @@ class HomeViewModel @Inject constructor(
             ?: cached?.takeIf { it.isNotBlank() }
             ?: DEFAULT_AI_FOCUS
         _aiFocus.value = focus
-        userPreferences.saveAiFocus(focus, today)
+        userPreferences.saveAiFocus(focus, today, signal)
         if (result.isSuccess) {
             // 覆盖当天旧记录，避免同一天生成多条「今日 AI 重点」
             notificationRepository.addReplacingToday(
@@ -290,8 +289,12 @@ class HomeViewModel @Inject constructor(
         val latestName = records.maxByOrNull { it.examDate }?.examName
         val latest = records.filter { it.examName == latestName }
         val total = latest.sumOf { it.score }.toInt()
-        val detail = latest.joinToString("，") { "${idToName[it.subjectId].orEmpty()}${it.score.toInt()}" }
-        return "最近一次「$latestName」总分 $total（$detail）"
+        val rateText = latest.joinToString("，") { record ->
+            val name = idToName[record.subjectId].orEmpty()
+            val rate = if (record.fullScore > 0) (record.score / record.fullScore * 100).roundToInt() else 0
+            "$name$rate%"
+        }
+        return "最近一次「$latestName」总分 $total（各科得分率：$rateText）"
     }
 
     /** 把单科成绩按考试名聚合出总分/排名/较上次变化。 */
