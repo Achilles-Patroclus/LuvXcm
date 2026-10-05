@@ -1,5 +1,6 @@
 package com.fenji.scoretrace.ui.screen.score
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.entity.Subject
@@ -9,8 +10,10 @@ import com.fenji.scoretrace.data.repository.NotificationType
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -30,6 +33,33 @@ class AiScoreInputViewModel @Inject constructor(
 
     val subjects: StateFlow<List<Subject>> = subjectRepository.observeSubjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 是否正在识别成绩单图片 */
+    private val _isParsing = MutableStateFlow(false)
+    val isParsing: StateFlow<Boolean> = _isParsing.asStateFlow()
+
+    /** 图片识别的一次性提示，UI 消费后调用 [clearParseHint] */
+    private val _parseHint = MutableStateFlow<String?>(null)
+    val parseHint: StateFlow<String?> = _parseHint.asStateFlow()
+
+    /**
+     * 解析成绩单图片。
+     *
+     * 当前 DeepSeek 仅提供文本模型（deepseek-chat / deepseek-reasoner），无视觉能力，
+     * 无法从图片识别分数；此处友好降级——不生成任何假数据，仅提示用户手动录入。
+     */
+    fun parseScoreImage(image: Uri) {
+        if (_isParsing.value) return
+        _isParsing.value = true
+        viewModelScope.launch {
+            _isParsing.value = false
+            _parseHint.value = "当前版本暂不支持自动识别成绩单，请手动录入各科分数"
+        }
+    }
+
+    fun clearParseHint() {
+        _parseHint.value = null
+    }
 
     /**
      * 保存一次考试：逐科写成绩记录，写考试排名，并生成一条「新成绩已录入」通知。

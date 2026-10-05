@@ -14,13 +14,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fenji.scoretrace.ui.component.ai.AiInputBar
@@ -41,7 +39,6 @@ fun AiScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -62,7 +59,6 @@ fun AiScreen(
             } else {
                 ChatList(
                     messages = messages,
-                    error = error,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -106,7 +102,6 @@ private fun WelcomeContent(
 @Composable
 private fun ChatList(
     messages: List<ChatMessage>,
-    error: String?,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -130,17 +125,6 @@ private fun ChatList(
     ) {
         items(messages, key = { it.id }) { message ->
             ChatBubble(message = message)
-        }
-
-        if (error != null) {
-            item {
-                Text(
-                    text = error,
-                    color = ScoreTraceColors.ErrorRed,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                )
-            }
         }
     }
 }

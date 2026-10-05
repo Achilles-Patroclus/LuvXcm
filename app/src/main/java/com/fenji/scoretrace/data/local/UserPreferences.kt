@@ -86,6 +86,14 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /** 清除今日 AI 重点缓存（成绩 / 目标院校变化时调用，强制下次重新生成）。 */
+    suspend fun clearAiFocus() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_AI_FOCUS)
+            preferences.remove(KEY_AI_FOCUS_DATE)
+        }
+    }
+
     private companion object {
         val KEY_GAOKAO_TIMESTAMP = longPreferencesKey("gaokao_timestamp")
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")

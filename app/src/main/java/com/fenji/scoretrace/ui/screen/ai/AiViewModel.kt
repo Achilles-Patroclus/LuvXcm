@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatRequest
 import com.fenji.scoretrace.data.repository.DeepSeekRepository
+import com.fenji.scoretrace.util.AppToast
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +21,6 @@ import javax.inject.Inject
 data class AiUiState(
     /** 输入框文本 */
     val inputText: String = "",
-    /** 当前选中的快捷问题（点击后填充到输入框） */
-    val selectedQuickAction: String? = null,
 )
 
 /** 一条对话消息 */
@@ -55,9 +55,6 @@ class AiViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
 
     private var nextMessageId = 0L
     private var streamJob: Job? = null
@@ -118,12 +115,9 @@ class AiViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(inputText = text)
     }
 
-    /** 点击快捷入口：将预设问题填充到输入框 */
+    /** 点击快捷入口：直接以预设问题发起对话。 */
     fun onQuickActionClick(action: AiQuickAction) {
-        _uiState.value = _uiState.value.copy(
-            inputText = action.presetQuestion,
-            selectedQuickAction = action.id,
-        )
+        sendMessage(action.presetQuestion)
     }
 
     /** 发送输入框中的消息 */
@@ -147,7 +141,6 @@ class AiViewModel @Inject constructor(
         _messages.value = _messages.value + userMessage + assistantMessage
         _uiState.value = AiUiState()
         _isLoading.value = true
-        _error.value = null
 
         // 历史消息（不含正在流式填充的空 AI 消息，也不含系统提示词——仓库会补）
         val history = _messages.value
@@ -165,12 +158,15 @@ class AiViewModel @Inject constructor(
                 }
                 // 兜底：流正常结束但未收到 [DONE] 时确保收尾
                 finishStreaming(assistantId)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _error.value = e.message ?: "请求失败，请重试"
+                val message = e.message ?: "请求失败，请重试"
+                AppToast.error(message)
                 _messages.value = _messages.value.map {
                     if (it.id == assistantId) {
                         it.copy(
-                            content = if (it.content.isEmpty()) "[请求失败] ${e.message}" else it.content,
+                            content = if (it.content.isEmpty()) "[请求失败] $message" else it.content,
                             isStreaming = false,
                         )
                     } else {
@@ -197,7 +193,6 @@ class AiViewModel @Inject constructor(
         streamJob?.cancel()
         streamJob = null
         _messages.value = emptyList()
-        _error.value = null
         _isLoading.value = false
         _uiState.value = AiUiState()
     }

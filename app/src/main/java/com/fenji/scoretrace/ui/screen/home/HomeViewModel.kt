@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -143,7 +144,22 @@ class HomeViewModel @Inject constructor(
     val aiFocus: StateFlow<String> = _aiFocus.asStateFlow()
 
     init {
-        viewModelScope.launch { loadOrGenerateAiFocus() }
+        // 今日 AI 重点：首次进入按当天缓存决定是否生成；此后成绩 / 目标院校一变，就清缓存并重新生成。
+        viewModelScope.launch {
+            var previousSignal: String? = null
+            combine(
+                scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
+                targetSchoolRepository.observeLatest(),
+            ) { scores, targetSchool -> focusSignal(scores, targetSchool?.schoolName) }
+                .distinctUntilChanged()
+                .collectLatest { signal ->
+                    if (previousSignal != null && signal != previousSignal) {
+                        userPreferences.clearAiFocus()
+                    }
+                    previousSignal = signal
+                    loadOrGenerateAiFocus()
+                }
+        }
     }
 
     /** 目标时间戳来自 DataStore，变化后会自动重新计算倒计时 */
@@ -218,8 +234,18 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * 今日 AI 重点：当天已生成则直接用缓存；否则调用 DeepSeek 依据最近成绩生成一条，
-     * 写入 DataStore 并生成一条「AI 建议」通知（当天只生成一次）。
+     * 成绩 / 目标院校的数据指纹：任一项变化都会改变它，用于判断 AI 重点缓存是否失效。
+     * 取「目标院校名 + 成绩条数 + 最近一次考试名 + 该次总分」。
+     */
+    private fun focusSignal(scores: List<ScoreRecord>, targetSchoolName: String?): String {
+        val latestExam = scores.maxByOrNull { it.examDate }?.examName
+        val latestTotal = scores.filter { it.examName == latestExam }.sumOf { it.score }.toInt()
+        return "$targetSchoolName|${scores.size}|$latestExam|$latestTotal"
+    }
+
+    /**
+     * 今日 AI 重点：当天已生成但数据未变则直接用缓存；否则调用 DeepSeek 依据最近成绩生成一条，
+     * 写入 DataStore 并生成一条「AI 建议」通知。
      */
     private suspend fun loadOrGenerateAiFocus() {
         val today = LocalDate.now().toString()
