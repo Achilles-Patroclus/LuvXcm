@@ -10,11 +10,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,6 +64,11 @@ fun MineScreen(
     val networkIp by viewModel.networkIp.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    var showClearDataDialog by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.toast.collect { AppToast.success(it) }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -169,7 +180,7 @@ fun MineScreen(
                     iconBgColor = ScoreTraceColors.ErrorRed,
                     title = "清除全部数据",
                     subtitle = "成绩、目标与设置将被清空",
-                    onClick = { /* TODO 二次确认弹窗 */ },
+                    onClick = { showClearDataDialog = true },
                 )
             }
 
@@ -223,5 +234,28 @@ fun MineScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    if (showClearDataDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDataDialog = false },
+            title = { Text("清除全部数据？") },
+            text = {
+                Text("将删除本机保存的成绩、目标院校、任务、通知、计时记录与 AI 对话，并重置所有设置。该操作不可撤销。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearAllData()
+                        showClearDataDialog = false
+                    },
+                ) {
+                    Text("确认清除", color = ScoreTraceColors.ErrorRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDataDialog = false }) { Text("取消") }
+            },
+        )
     }
 }

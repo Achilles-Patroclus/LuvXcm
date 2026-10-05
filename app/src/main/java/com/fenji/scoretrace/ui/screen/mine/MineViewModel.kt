@@ -3,15 +3,22 @@ package com.fenji.scoretrace.ui.screen.mine
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.UserPreferences
+import com.fenji.scoretrace.data.repository.ConversationRepository
+import com.fenji.scoretrace.data.repository.ExamRecordRepository
 import com.fenji.scoretrace.data.repository.NetworkRepository
+import com.fenji.scoretrace.data.repository.NotificationRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
+import com.fenji.scoretrace.data.repository.StudySessionRepository
 import com.fenji.scoretrace.data.repository.StudyTaskRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
 import com.fenji.scoretrace.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -51,10 +58,17 @@ class MineViewModel @Inject constructor(
     private val scoreRecordRepository: ScoreRecordRepository,
     private val studyTaskRepository: StudyTaskRepository,
     private val networkRepository: NetworkRepository,
+    private val examRecordRepository: ExamRecordRepository,
+    private val notificationRepository: NotificationRepository,
+    private val studySessionRepository: StudySessionRepository,
+    private val conversationRepository: ConversationRepository,
 ) : ViewModel() {
 
     private val _networkIp = MutableStateFlow(IP_LOADING)
     val networkIp: StateFlow<String> = _networkIp.asStateFlow()
+
+    private val _toast = MutableSharedFlow<String>(extraBufferCapacity = 2)
+    val toast: SharedFlow<String> = _toast.asSharedFlow()
 
     val uiState: StateFlow<MineUiState> = combine(
         userPreferences.darkTheme,
@@ -109,6 +123,21 @@ class MineViewModel @Inject constructor(
         }
     }
 
+    /** 清除全部用户数据：清空 Room 用户数据表 + 重置全部偏好。 */
+    fun clearAllData() {
+        viewModelScope.launch {
+            scoreRecordRepository.clearAll()
+            examRecordRepository.clearAll()
+            studyTaskRepository.clearAll()
+            targetSchoolRepository.clearAll()
+            notificationRepository.clearAll()
+            studySessionRepository.clearAll()
+            conversationRepository.clearAll()
+            userPreferences.clearAll()
+            _toast.emit("已清除全部数据")
+        }
+    }
+
     private fun examYearOf(gaokaoTimestamp: Long): String =
         Calendar.getInstance().apply { timeInMillis = gaokaoTimestamp }
             .get(Calendar.YEAR)
@@ -123,6 +152,6 @@ class MineViewModel @Inject constructor(
     private companion object {
         const val RECENT_SCORE_LIMIT = 100
         const val IP_LOADING = "获取中…"
-        const val IP_FAILED = "获取失败"
+        const val IP_FAILED = "暂不可用"
     }
 }

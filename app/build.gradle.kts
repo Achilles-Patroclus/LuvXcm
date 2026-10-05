@@ -32,6 +32,10 @@ android {
         }
         val deepseekApiKey = localProperties.getProperty("deepseek.api.key", "")
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
+
+        // 智谱 GLM-4V-Flash API Key（拍照识分用），同样从 local.properties 读取
+        val glmApiKey = localProperties.getProperty("glm.api.key", "")
+        buildConfigField("String", "GLM_API_KEY", "\"$glmApiKey\"")
     }
 
     buildTypes {

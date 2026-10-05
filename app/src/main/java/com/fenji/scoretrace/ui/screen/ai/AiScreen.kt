@@ -46,6 +46,7 @@ fun AiScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val quickActions by viewModel.quickActions.collectAsStateWithLifecycle()
 
     // 从历史对话页返回时：加载选中的会话 / 开启新对话
     LaunchedEffect(loadConversationId) {
@@ -77,7 +78,7 @@ fun AiScreen(
 
             if (messages.isEmpty()) {
                 WelcomeContent(
-                    actions = viewModel.quickActions,
+                    actions = quickActions,
                     onActionClick = viewModel::onQuickActionClick,
                     modifier = Modifier.weight(1f),
                 )

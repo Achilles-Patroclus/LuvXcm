@@ -92,6 +92,11 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /** 清空全部偏好（用于「清除全部数据」，各字段会回落到默认值）。 */
+    suspend fun clearAll() {
+        context.dataStore.edit { preferences -> preferences.clear() }
+    }
+
     private companion object {
         val KEY_GAOKAO_TIMESTAMP = longPreferencesKey("gaokao_timestamp")
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")

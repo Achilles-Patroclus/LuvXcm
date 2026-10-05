@@ -5,10 +5,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.R
+import com.fenji.scoretrace.data.local.UserPreferences
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatRequest
 import com.fenji.scoretrace.data.repository.ConversationRepository
 import com.fenji.scoretrace.data.repository.DeepSeekRepository
 import com.fenji.scoretrace.util.AppToast
+import com.fenji.scoretrace.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -20,6 +22,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 /** AI 助手页面的输入区状态 */
@@ -58,6 +64,7 @@ data class AiQuickAction(
 class AiViewModel @Inject constructor(
     private val repository: DeepSeekRepository,
     private val conversationRepository: ConversationRepository,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AiUiState())
@@ -81,8 +88,16 @@ class AiViewModel @Inject constructor(
     /** 当前会话 id；null 表示尚未落库的新对话（首条提问时创建） */
     private var currentConversationId: Long? = null
 
-    /** 六个快捷入口 */
-    val quickActions: List<AiQuickAction> = listOf(
+    /** 六个快捷入口（「生成学习计划」副标题的剩余天数随高考日期动态变化） */
+    val quickActions: StateFlow<List<AiQuickAction>> = userPreferences.gaokaoTimestamp
+        .map { timestamp -> buildQuickActions(remainingDays(timestamp)) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = buildQuickActions(remainingDays(DateUtils.defaultGaokaoTimestamp())),
+        )
+
+    private fun buildQuickActions(days: Int): List<AiQuickAction> = listOf(
         AiQuickAction(
             id = "weakness",
             title = "分析薄弱点",
@@ -94,7 +109,7 @@ class AiViewModel @Inject constructor(
         AiQuickAction(
             id = "plan",
             title = "生成学习计划",
-            subtitle = "按剩余247天排冲刺节奏",
+            subtitle = "按剩余 $days 天排冲刺节奏",
             iconRes = R.drawable.ic_calendar_month,
             iconTint = Color(0xFF10B981),
             presetQuestion = "根据我的目标院校和剩余时间，生成一份冲刺学习计划",
@@ -132,6 +147,12 @@ class AiViewModel @Inject constructor(
             presetQuestion = "距离高考还有200多天，最后的冲刺策略应该怎么安排？",
         ),
     )
+
+    /** 距高考剩余天数（与首页倒计时同口径） */
+    private fun remainingDays(timestamp: Long): Int {
+        val examDate = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+        return ChronoUnit.DAYS.between(LocalDate.now(), examDate).toInt().coerceAtLeast(0)
+    }
 
     fun onInputChange(text: String) {
         _uiState.value = _uiState.value.copy(inputText = text)

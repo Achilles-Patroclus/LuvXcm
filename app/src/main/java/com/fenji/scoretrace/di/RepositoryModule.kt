@@ -2,6 +2,7 @@ package com.fenji.scoretrace.di
 
 import com.fenji.scoretrace.data.repository.DefaultConversationRepository
 import com.fenji.scoretrace.data.repository.DefaultExamRecordRepository
+import com.fenji.scoretrace.data.repository.DefaultGlmVisionRepository
 import com.fenji.scoretrace.data.repository.DefaultMajorRepository
 import com.fenji.scoretrace.data.repository.DefaultNetworkRepository
 import com.fenji.scoretrace.data.repository.DefaultNotificationRepository
@@ -13,6 +14,7 @@ import com.fenji.scoretrace.data.repository.DefaultSubjectRepository
 import com.fenji.scoretrace.data.repository.DefaultTargetSchoolRepository
 import com.fenji.scoretrace.data.repository.ConversationRepository
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
+import com.fenji.scoretrace.data.repository.GlmVisionRepository
 import com.fenji.scoretrace.data.repository.MajorRepository
 import com.fenji.scoretrace.data.repository.NetworkRepository
 import com.fenji.scoretrace.data.repository.NotificationRepository
@@ -63,4 +65,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindConversationRepository(impl: DefaultConversationRepository): ConversationRepository
+
+    @Binds
+    abstract fun bindGlmVisionRepository(impl: DefaultGlmVisionRepository): GlmVisionRepository
 }

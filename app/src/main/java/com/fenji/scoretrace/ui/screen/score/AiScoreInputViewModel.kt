@@ -1,15 +1,22 @@
 package com.fenji.scoretrace.ui.screen.score
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.entity.Subject
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
+import com.fenji.scoretrace.data.repository.GlmVisionRepository
 import com.fenji.scoretrace.data.repository.NotificationRepository
 import com.fenji.scoretrace.data.repository.NotificationType
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
+import com.fenji.scoretrace.data.repository.ScoreSheetData
 import com.fenji.scoretrace.data.repository.SubjectRepository
+import com.fenji.scoretrace.util.ImageEncoder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +36,8 @@ class AiScoreInputViewModel @Inject constructor(
     private val scoreRecordRepository: ScoreRecordRepository,
     private val examRecordRepository: ExamRecordRepository,
     private val notificationRepository: NotificationRepository,
+    private val glmVisionRepository: GlmVisionRepository,
+    @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     val subjects: StateFlow<List<Subject>> = subjectRepository.observeSubjects()
@@ -38,27 +47,45 @@ class AiScoreInputViewModel @Inject constructor(
     private val _isParsing = MutableStateFlow(false)
     val isParsing: StateFlow<Boolean> = _isParsing.asStateFlow()
 
-    /** 图片识别的一次性提示，UI 消费后调用 [clearParseHint] */
+    /** 图片识别的一次性提示（成功/失败），UI 消费后调用 [clearParseHint] */
     private val _parseHint = MutableStateFlow<String?>(null)
     val parseHint: StateFlow<String?> = _parseHint.asStateFlow()
 
+    /** 识别成功的结构化结果，供 UI 回填表单；消费后调用 [clearParsedSheet] */
+    private val _parsedSheet = MutableStateFlow<ScoreSheetData?>(null)
+    val parsedSheet: StateFlow<ScoreSheetData?> = _parsedSheet.asStateFlow()
+
     /**
-     * 解析成绩单图片。
-     *
-     * 当前 DeepSeek 仅提供文本模型（deepseek-chat / deepseek-reasoner），无视觉能力，
-     * 无法从图片识别分数；此处友好降级——不生成任何假数据，仅提示用户手动录入。
+     * 识别成绩单图片：Uri → 压缩为 base64 data URL → 调 GLM-4V-Flash 结构化识别。
+     * 成功通过 [parsedSheet] 回填表单；失败用 [parseHint] 提示并保留手动录入。
      */
     fun parseScoreImage(image: Uri) {
         if (_isParsing.value) return
         _isParsing.value = true
+        _parseHint.value = null
         viewModelScope.launch {
+            val dataUrl = withContext(Dispatchers.IO) {
+                ImageEncoder.uriToDataUrl(appContext, image)
+            }
+            if (dataUrl == null) {
+                _isParsing.value = false
+                _parseHint.value = "无法读取所选图片，请重新选择或手动录入"
+                return@launch
+            }
+            val result = glmVisionRepository.recognizeScoreSheet(dataUrl)
             _isParsing.value = false
-            _parseHint.value = "当前版本暂不支持自动识别成绩单，请手动录入各科分数"
+            result
+                .onSuccess { _parsedSheet.value = it }
+                .onFailure { _parseHint.value = "识别失败：${it.message ?: "网络异常"}，请手动录入" }
         }
     }
 
     fun clearParseHint() {
         _parseHint.value = null
+    }
+
+    fun clearParsedSheet() {
+        _parsedSheet.value = null
     }
 
     /**

@@ -3,6 +3,7 @@ package com.fenji.scoretrace.di
 import com.fenji.scoretrace.BuildConfig
 import com.fenji.scoretrace.data.remote.ApiService
 import com.fenji.scoretrace.data.remote.deepseek.DeepSeekApiService
+import com.fenji.scoretrace.data.remote.glm.GlmApiService
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -24,6 +25,8 @@ object NetworkModule {
     private const val BASE_URL = "https://api.example.com/v1/"
 
     private const val DEEPSEEK_BASE_URL = "https://api.deepseek.com/"
+
+    private const val GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
 
     @Provides
     @Singleton
@@ -108,4 +111,52 @@ object NetworkModule {
     fun provideDeepSeekApiService(
         @Named("deepseek") retrofit: Retrofit,
     ): DeepSeekApiService = retrofit.create(DeepSeekApiService::class.java)
+
+    // ── 智谱 GLM 网络栈（拍照识分）───────────────────────────────
+    // 与 DeepSeek 同样用 @Named("glm") 隔离，固定 Authorization 头。
+
+    @Provides
+    @Singleton
+    @Named("glm")
+    fun provideGlmOkHttpClient(): OkHttpClient {
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+        val authInterceptor = okhttp3.Interceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("Authorization", "Bearer ${BuildConfig.GLM_API_KEY}")
+                .header("Content-Type", "application/json")
+                .build()
+            chain.proceed(request)
+        }
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(logging)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @Named("glm")
+    fun provideGlmRetrofit(
+        @Named("glm") client: OkHttpClient,
+        gson: Gson,
+    ): Retrofit = Retrofit.Builder()
+        .baseUrl(GLM_BASE_URL)
+        .client(client)
+        .addConverterFactory(GsonConverterFactory.create(gson))
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideGlmApiService(
+        @Named("glm") retrofit: Retrofit,
+    ): GlmApiService = retrofit.create(GlmApiService::class.java)
 }

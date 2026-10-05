@@ -81,6 +81,7 @@ fun AiScoreInputScreen(
 ) {
     val isParsing by viewModel.isParsing.collectAsStateWithLifecycle()
     val parseHint by viewModel.parseHint.collectAsStateWithLifecycle()
+    val parsedSheet by viewModel.parsedSheet.collectAsStateWithLifecycle()
     var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -108,6 +109,27 @@ fun AiScoreInputScreen(
     val total = entries.sumOf { if (it.score > 0) it.score else 0.0 }
     val hasOverflow = entries.any { it.score > it.fullScore }
     val canSave = examName.isNotBlank() && !hasOverflow && entries.any { it.score > 0 }
+
+    // 识别成功：把结果回填到表单（只覆盖有值的字段）
+    LaunchedEffect(parsedSheet) {
+        parsedSheet?.let { sheet ->
+            if (sheet.examName.isNotBlank()) examName = sheet.examName
+            if (sheet.examDate.isNotBlank()) examDateText = sheet.examDate
+            sheet.classRank?.let { classRankText = it.toString() }
+            sheet.scores.forEach { subject ->
+                val index = FORM_SUBJECTS.indexOfFirst { it.first == subject.name }
+                if (index >= 0) {
+                    scoreTexts[index] = if (subject.score % 1.0 == 0.0) {
+                        subject.score.toInt().toString()
+                    } else {
+                        subject.score.toString()
+                    }
+                }
+            }
+            AppToast.success("识别成功，请核对后保存")
+            viewModel.clearParsedSheet()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -139,7 +161,7 @@ fun AiScoreInputScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = if (isParsing) "正在识别成绩单…" else "当前版本暂不支持自动识别，请手动录入各科分数",
+                            text = if (isParsing) "正在识别成绩单…" else "识别完成后请核对各科分数，必要时手动修正",
                             fontSize = 13.sp,
                             color = if (isParsing) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextSecondaryLight,
                         )
