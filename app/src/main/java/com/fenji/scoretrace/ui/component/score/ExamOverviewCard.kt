@@ -26,13 +26,17 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 fun ExamOverviewCard(
     examName: String,
     examDate: String,
-    totalStudents: Int,
+    /** 全级人数；null 时不显示该信息 */
+    totalStudents: Int?,
     totalScore: Int,
     fullScore: Int,
     totalRate: Float,
-    classRank: Int,
-    gradeRank: Int,
-    deltaFromLast: Int,
+    /** 班级排名；null 显示「—」 */
+    classRank: Int?,
+    /** 年级排名；null 显示「—」 */
+    gradeRank: Int?,
+    /** 较上次变化；null 时不显示该数据块 */
+    deltaFromLast: Int?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -56,7 +60,7 @@ fun ExamOverviewCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "$examDate · 全级 $totalStudents 人",
+                    text = if (totalStudents != null) "$examDate · 全级 $totalStudents 人" else examDate,
                     fontSize = 12.sp,
                     color = ScoreTraceColors.TextSecondaryLight,
                 )
@@ -83,9 +87,11 @@ fun ExamOverviewCard(
         Spacer(modifier = Modifier.height(14.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatBlock(label = "班级排名", value = classRank.toString(), modifier = Modifier.weight(1f))
-            StatBlock(label = "年级排名", value = gradeRank.toString(), modifier = Modifier.weight(1f))
-            DeltaBlock(delta = deltaFromLast, modifier = Modifier.weight(1f))
+            StatBlock(label = "班级排名", value = classRank?.toString() ?: "—", modifier = Modifier.weight(1f))
+            StatBlock(label = "年级排名", value = gradeRank?.toString() ?: "—", modifier = Modifier.weight(1f))
+            if (deltaFromLast != null) {
+                DeltaBlock(delta = deltaFromLast, modifier = Modifier.weight(1f))
+            }
         }
     }
 }

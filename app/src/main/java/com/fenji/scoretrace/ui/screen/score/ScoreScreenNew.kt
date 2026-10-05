@@ -1,6 +1,7 @@
 package com.fenji.scoretrace.ui.screen.score
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,10 +10,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fenji.scoretrace.ui.component.EmptyView
+import com.fenji.scoretrace.ui.component.LoadingView
 import com.fenji.scoretrace.ui.component.score.AiHintBar
 import com.fenji.scoretrace.ui.component.score.AnalysisCard
 import com.fenji.scoretrace.ui.component.score.HistorySection
@@ -43,49 +47,69 @@ fun ScoreScreenNew(
             ScoreTopBar(onFilterClick = { /* TODO: 按考试/科目/时间筛选 */ })
             AiHintBar(onClick = onOpenAi)
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                LatestExamCard(
-                    examName = state.latestExamName,
-                    examDate = state.latestExamDate,
-                    totalScore = state.latestTotalScore,
-                    fullScore = state.latestFullScore,
-                    delta = state.deltaFromLast,
-                    classRank = state.classRank,
-                    gradeRank = state.gradeRank,
-                    totalRate = state.totalRate,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+            when {
+                state.isLoading -> LoadingView(modifier = Modifier.weight(1f))
 
-                TotalTrendCard(
-                    points = state.trendPoints,
-                    targetScore = state.targetScore,
-                    selectedRange = state.trendRange,
-                    onRangeChange = viewModel::setTrendRange,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+                !state.hasScores -> Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyView(
+                        message = "暂无成绩",
+                        subtitle = "记录每一次考试，才看得见进步的曲线",
+                        actionLabel = "去录入成绩",
+                        onAction = onOpenAi,
+                    )
+                }
 
-                AnalysisCard(
-                    selectedTab = state.analysisTab,
-                    onTabChange = viewModel::setAnalysisTab,
-                    subjectRates = state.subjectRates,
-                    selectedSubject = state.selectedSubject,
-                    onSubjectChange = viewModel::setSelectedSubject,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+                else -> Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    LatestExamCard(
+                        examName = state.latestExamName,
+                        examDate = state.latestExamDate,
+                        totalScore = state.latestTotalScore,
+                        fullScore = state.latestFullScore,
+                        delta = state.deltaFromLast,
+                        classRank = state.classRank,
+                        gradeRank = state.gradeRank,
+                        totalRate = state.totalRate,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
 
-                HistorySection(
-                    groups = state.historyGroups,
-                    onDelete = { viewModel.deleteExam(it.id) },
-                    onItemClick = { onOpenDetail(it.id) },
-                    onGuideClick = onOpenAi,
-                )
+                    TotalTrendCard(
+                        points = state.trendPoints,
+                        targetScore = state.targetScore,
+                        selectedRange = state.trendRange,
+                        onRangeChange = viewModel::setTrendRange,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+
+                    AnalysisCard(
+                        selectedTab = state.analysisTab,
+                        onTabChange = viewModel::setAnalysisTab,
+                        subjectRates = state.subjectRates,
+                        subjectTrend = state.subjectTrend,
+                        currentTotalScore = state.latestTotalScore,
+                        selectedSubject = state.selectedSubject,
+                        onSubjectChange = viewModel::setSelectedSubject,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+
+                    HistorySection(
+                        groups = state.historyGroups,
+                        onDelete = { viewModel.deleteExam(it.examName) },
+                        onItemClick = { onOpenDetail(it.id) },
+                        onGuideClick = onOpenAi,
+                    )
+                }
             }
         }
     }

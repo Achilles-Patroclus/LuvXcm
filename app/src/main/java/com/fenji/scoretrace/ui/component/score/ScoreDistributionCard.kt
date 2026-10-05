@@ -26,12 +26,13 @@ import java.util.Locale
 fun ScoreDistributionCard(
     segments: List<ScoreSegment>,
     myScore: Int,
-    totalClassStudents: Int,
+    /** 本班人数；null 时不显示人数 */
+    totalClassStudents: Int?,
     modifier: Modifier = Modifier,
 ) {
     val mySegment = segments.firstOrNull { it.isMine }
     val surpassCount = segments.takeWhile { !it.isMine }.sumOf { it.count }
-    val surpassRate = if (totalClassStudents > 0) {
+    val surpassRate = if (totalClassStudents != null && totalClassStudents > 0) {
         surpassCount.toFloat() / totalClassStudents
     } else {
         0f
@@ -52,19 +53,18 @@ fun ScoreDistributionCard(
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "共 $totalClassStudents 人",
-                fontSize = 13.sp,
-                color = ScoreTraceColors.TextSecondaryLight,
-            )
+            if (totalClassStudents != null) {
+                Text(
+                    text = "共 $totalClassStudents 人",
+                    fontSize = 13.sp,
+                    color = ScoreTraceColors.TextSecondaryLight,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        ScoreDistributionChart(segments = segments, myScore = myScore)
-
-        if (mySegment != null) {
-            Spacer(modifier = Modifier.height(12.dp))
+        if (segments.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -73,12 +73,31 @@ fun ScoreDistributionCard(
                     .padding(12.dp),
             ) {
                 Text(
-                    text = "你位于 ${mySegment.label} 分数段（本班人数最多的一档），超过全班 " +
-                        "${String.format(Locale.US, "%.0f", surpassRate * 100)}% 的同学。",
+                    text = "数据不足",
                     fontSize = 13.sp,
-                    color = ScoreTraceColors.TextSecondaryLight,
-                    lineHeight = 18.sp,
+                    color = ScoreTraceColors.TextTertiaryLight,
                 )
+            }
+        } else {
+            ScoreDistributionChart(segments = segments, myScore = myScore)
+
+            if (mySegment != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ScoreTraceColors.PageBackgroundLight)
+                        .padding(12.dp),
+                ) {
+                    Text(
+                        text = "你位于 ${mySegment.label} 分数段（本班人数最多的一档），超过全班 " +
+                            "${String.format(Locale.US, "%.0f", surpassRate * 100)}% 的同学。",
+                        fontSize = 13.sp,
+                        color = ScoreTraceColors.TextSecondaryLight,
+                        lineHeight = 18.sp,
+                    )
+                }
             }
         }
     }

@@ -19,6 +19,8 @@ import com.fenji.scoretrace.data.repository.TargetSchoolRepository
 import com.fenji.scoretrace.ui.component.SubjectScore
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.DateUtils
+import com.fenji.scoretrace.util.aggregateExams
+import com.fenji.scoretrace.util.rankRecordFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -268,24 +270,15 @@ class HomeViewModel @Inject constructor(
 
     /** 把单科成绩按考试名聚合出总分/排名/较上次变化。 */
     private fun summarizeScores(scores: List<ScoreRecord>, exams: List<ExamRecord>): ScoreSummary {
-        if (scores.isEmpty()) return ScoreSummary()
-        val byExam = scores.groupBy { it.examName }
-            .map { (name, records) ->
-                ExamAggregate(
-                    name = name,
-                    date = records.maxOf { it.examDate },
-                    total = records.sumOf { it.score }.toInt(),
-                )
-            }
-            .sortedByDescending { it.date }
-        val latest = byExam.first()
+        val byExam = aggregateExams(scores)
+        val latest = byExam.firstOrNull() ?: return ScoreSummary()
         val previous = byExam.getOrNull(1)
-        val exam = exams.firstOrNull { it.examName == latest.name }
+        val exam = rankRecordFor(exams, latest.name)
         return ScoreSummary(
-            latestTotal = latest.total,
+            latestTotal = latest.totalScore,
             rankText = exam?.classRank?.let { "班级第$it" } ?: "",
             gradeRankText = exam?.gradeRank?.let { "年级第$it" } ?: "",
-            delta = previous?.let { latest.total - it.total },
+            delta = previous?.let { latest.totalScore - it.totalScore },
         )
     }
 
@@ -304,8 +297,6 @@ class HomeViewModel @Inject constructor(
             targetDateText = targetDateText,
         )
     }
-
-    private data class ExamAggregate(val name: String, val date: Date, val total: Int)
 
     private data class ScoreSummary(
         val latestTotal: Int? = null,

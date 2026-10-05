@@ -31,7 +31,7 @@ import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.component.RadarChart
 import com.fenji.scoretrace.ui.component.SubjectScore
 import com.fenji.scoretrace.ui.screen.score.AnalysisTab
-import com.fenji.scoretrace.ui.screen.score.TrendPoint
+import com.fenji.scoretrace.ui.screen.score.SubjectTrend
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
 /** 各科分析卡：雷达图 / 单科趋势 / 强弱科三个 Tab。 */
@@ -40,6 +40,9 @@ fun AnalysisCard(
     selectedTab: AnalysisTab,
     onTabChange: (AnalysisTab) -> Unit,
     subjectRates: List<SubjectScore>,
+    subjectTrend: SubjectTrend,
+    /** 最近一次考试总分；null 时强弱科建议不显示提升估算 */
+    currentTotalScore: Int?,
     selectedSubject: String,
     onSubjectChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -93,8 +96,8 @@ fun AnalysisCard(
 
         when (selectedTab) {
             AnalysisTab.Radar -> RadarTabContent(subjectRates)
-            AnalysisTab.Trend -> TrendTabContent(selectedSubject, onSubjectChange, subjectRates)
-            AnalysisTab.StrongWeak -> StrongWeakTabContent(subjectRates)
+            AnalysisTab.Trend -> TrendTabContent(selectedSubject, onSubjectChange, subjectRates, subjectTrend)
+            AnalysisTab.StrongWeak -> StrongWeakTabContent(subjectRates, currentTotalScore)
         }
     }
 }
@@ -162,6 +165,7 @@ private fun TrendTabContent(
     selectedSubject: String,
     onSubjectChange: (String) -> Unit,
     subjectRates: List<SubjectScore>,
+    subjectTrend: SubjectTrend,
 ) {
     Column {
         // 科目选择胶囊行（横向可滑动，避免窄屏溢出）
@@ -201,24 +205,31 @@ private fun TrendTabContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // TODO: 硬编码占位，后续从 ScoreRecord 按科目筛选历史成绩
-        val subjectTrend = listOf(
-            TrendPoint("5日", 88), TrendPoint("6日", 92),
-            TrendPoint("7日", 95), TrendPoint("8日", 90),
-            TrendPoint("9日", 96),
-        )
+        if (subjectTrend.points.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("暂无该科目成绩", fontSize = 14.sp, color = ScoreTraceColors.TextSecondaryLight)
+            }
+            return
+        }
+
+        val fullScore = subjectTrend.fullScore.coerceAtLeast(1)
         LineChart(
-            points = subjectTrend,
-            targetScore = 120,
-            yMin = 60,
-            yMax = 150,
+            points = subjectTrend.points,
+            targetScore = fullScore,
+            yMin = (fullScore * 0.4f).toInt(),
+            yMax = fullScore,
             modifier = Modifier.height(160.dp),
         )
 
         Spacer(modifier = Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Text(
-                text = "最新 96 / 150",
+                text = "最新 ${subjectTrend.latest ?: 0} / $fullScore",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = ScoreTraceColors.BrandPrimary,
@@ -229,7 +240,7 @@ private fun TrendTabContent(
 
 // ── 强弱科 Tab ──
 @Composable
-private fun StrongWeakTabContent(subjectRates: List<SubjectScore>) {
+private fun StrongWeakTabContent(subjectRates: List<SubjectScore>, currentTotalScore: Int?) {
     // 至少一科有成绩才算有数据，否则六科 rate 全为 0，强弱科与建议都无意义
     val hasData = subjectRates.any { it.rate > 0.01f }
     if (!hasData) {
@@ -290,7 +301,11 @@ private fun StrongWeakTabContent(subjectRates: List<SubjectScore>) {
             Spacer(modifier = Modifier.height(12.dp))
             val weakNames = weak.take(2).joinToString(" → ") { it.name }
             Text(
-                text = "补弱优先级：$weakNames。预计两科各提 15 分，总分可达 ${562 + 30}。",
+                text = if (currentTotalScore != null) {
+                    "补弱优先级：$weakNames。预计两科各提 15 分，总分可达 ${currentTotalScore + 30}。"
+                } else {
+                    "补弱优先级：$weakNames。"
+                },
                 fontSize = 13.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
                 lineHeight = 18.sp,

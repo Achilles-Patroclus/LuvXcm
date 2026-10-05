@@ -1,6 +1,7 @@
 package com.fenji.scoretrace.ui.screen.score
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,10 +13,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fenji.scoretrace.ui.component.EmptyView
+import com.fenji.scoretrace.ui.component.LoadingView
 import com.fenji.scoretrace.ui.component.score.DetailActionButtons
 import com.fenji.scoretrace.ui.component.score.DetailTopBar
 import com.fenji.scoretrace.ui.component.score.ExamOverviewCard
@@ -47,46 +51,62 @@ fun ScoreDetailScreen(
                 onDelete = { viewModel.deleteExam() },
             )
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                ExamOverviewCard(
-                    examName = state.examName,
-                    examDate = state.examDate,
-                    totalStudents = state.totalStudents,
-                    totalScore = state.totalScore,
-                    fullScore = state.fullScore,
-                    totalRate = state.totalRate,
-                    classRank = state.classRank,
-                    gradeRank = state.gradeRank,
-                    deltaFromLast = state.deltaFromLast,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+            when {
+                state.isLoading -> LoadingView(modifier = Modifier.weight(1f))
 
-                SubjectDetailList(
-                    subjects = state.subjects,
-                    onWrongQuestionsClick = { /* TODO: 跳转到错题页 */ },
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+                !state.found -> Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyView(
+                        message = "成绩不存在",
+                        subtitle = "该考试可能已被删除",
+                    )
+                }
 
-                ScoreDistributionCard(
-                    segments = state.segments,
-                    myScore = state.totalScore,
-                    totalClassStudents = state.classStudentCount,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+                else -> Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    ExamOverviewCard(
+                        examName = state.examName,
+                        examDate = state.examDate,
+                        totalStudents = state.totalStudents,
+                        totalScore = state.totalScore,
+                        fullScore = state.fullScore,
+                        totalRate = state.totalRate,
+                        classRank = state.classRank,
+                        gradeRank = state.gradeRank,
+                        deltaFromLast = state.deltaFromLast,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
 
-                DetailActionButtons(
-                    onAiAnalyze = { /* TODO: 跳转到 AI 分析 */ },
-                    onEdit = { /* TODO: 跳转到编辑页 */ },
-                    onDelete = { viewModel.deleteExam() },
-                )
+                    SubjectDetailList(
+                        subjects = state.subjects,
+                        onWrongQuestionsClick = { /* TODO: 跳转到错题页 */ },
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    ScoreDistributionCard(
+                        segments = state.segments,
+                        myScore = state.totalScore,
+                        totalClassStudents = state.classStudentCount,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+
+                    DetailActionButtons(
+                        onAiAnalyze = { /* TODO: 跳转到 AI 分析 */ },
+                        onEdit = { /* TODO: 跳转到编辑页 */ },
+                        onDelete = { viewModel.deleteExam() },
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }

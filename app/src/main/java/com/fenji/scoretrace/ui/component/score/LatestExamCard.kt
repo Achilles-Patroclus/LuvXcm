@@ -30,9 +30,12 @@ fun LatestExamCard(
     examDate: String,
     totalScore: Int,
     fullScore: Int,
-    delta: Int,
-    classRank: Int,
-    gradeRank: Int,
+    /** 较上次变化；null 时不显示变化标签 */
+    delta: Int?,
+    /** 班级排名；null 显示「—」 */
+    classRank: Int?,
+    /** 年级排名；null 显示「—」 */
+    gradeRank: Int?,
     totalRate: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -51,25 +54,27 @@ fun LatestExamCard(
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (delta >= 0) {
-                            ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f)
-                        } else {
-                            ScoreTraceColors.ErrorRed.copy(alpha = 0.12f)
-                        },
+            if (delta != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (delta >= 0) {
+                                ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f)
+                            } else {
+                                ScoreTraceColors.ErrorRed.copy(alpha = 0.12f)
+                            },
+                        )
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = if (delta >= 0) "↑$delta 分" else "↓${-delta} 分",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (delta >= 0) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
                     )
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    text = if (delta >= 0) "↑$delta 分" else "↓${-delta} 分",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (delta >= 0) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
-                )
+                }
             }
         }
 
@@ -98,8 +103,8 @@ fun LatestExamCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            StatBlock(label = "班级排名", value = classRank.toString(), modifier = Modifier.weight(1f))
-            StatBlock(label = "年级排名", value = gradeRank.toString(), modifier = Modifier.weight(1f))
+            StatBlock(label = "班级排名", value = classRank?.toString() ?: "—", modifier = Modifier.weight(1f))
+            StatBlock(label = "年级排名", value = gradeRank?.toString() ?: "—", modifier = Modifier.weight(1f))
             StatBlock(
                 label = "总得分率",
                 value = String.format(Locale.US, "%.1f%%", totalRate * 100),

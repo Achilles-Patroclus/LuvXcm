@@ -108,7 +108,7 @@ fun HistoryRecordCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "班 ${item.classRank} · 年 ${item.gradeRank}",
+                    text = "班 ${item.classRank ?: "—"} · 年 ${item.gradeRank ?: "—"}",
                     fontSize = 12.sp,
                     color = ScoreTraceColors.TextSecondaryLight,
                 )
@@ -121,13 +121,15 @@ fun HistoryRecordCard(
                     fontWeight = FontWeight.Bold,
                     color = ScoreTraceColors.BrandPrimary,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (item.deltaFromLast >= 0) "↑${item.deltaFromLast}" else "↓${-item.deltaFromLast}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (item.deltaFromLast >= 0) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
-                )
+                item.deltaFromLast?.let { delta ->
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (delta >= 0) "↑$delta" else "↓${-delta}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (delta >= 0) ScoreTraceColors.SuccessGreen else ScoreTraceColors.ErrorRed,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))

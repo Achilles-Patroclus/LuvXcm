@@ -3,17 +3,28 @@ package com.fenji.scoretrace.ui.screen.score
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fenji.scoretrace.data.local.UserPreferences
+import com.fenji.scoretrace.data.repository.ExamRecordRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.ui.component.SubjectScore
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.Constants
+import com.fenji.scoretrace.util.DateUtils
+import com.fenji.scoretrace.util.aggregateExams
+import com.fenji.scoretrace.util.examNameToId
+import com.fenji.scoretrace.util.rankRecordFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Date
 import javax.inject.Inject
 
 /** 总分趋势时间范围 */
@@ -36,21 +47,27 @@ data class TrendPoint(
     val score: Int,
 )
 
-/**
- * 一次考试的历史记录（按考试聚合）。
- *
- * TODO: 占位模型，当前 `ScoreRecord` 是单科成绩，无考试总分/排名字段；后续由 `ExamSummary` 实体提供。
- */
+/** 单科趋势：某科目历次成绩（时间正序）及满分/最新值。 */
+data class SubjectTrend(
+    val points: List<TrendPoint> = emptyList(),
+    val fullScore: Int = 0,
+    val latest: Int? = null,
+)
+
+/** 一次考试的历史记录（按 examName 聚合）。 */
 data class ExamHistoryItem(
+    /** 由 examName 派生的稳定 id，供导航到详情页使用 */
     val id: Long,
     val examName: String,
     val date: LocalDate,
     val totalScore: Int,
     val fullScore: Int,
-    /** 较上次变化（正=上升，负=下降） */
-    val deltaFromLast: Int,
-    val classRank: Int,
-    val gradeRank: Int,
+    /** 较上次变化（正=上升，负=下降）；无上一次考试时为 null */
+    val deltaFromLast: Int?,
+    /** 班级排名；未填写时为 null */
+    val classRank: Int?,
+    /** 年级排名；未填写时为 null */
+    val gradeRank: Int?,
 )
 
 /** 历史记录分组（本月 / 上月 / 更早） */
@@ -60,23 +77,26 @@ data class HistoryGroup(
 )
 
 data class ScorePageUiState(
-    /** 最近一次考试名称 */
-    val latestExamName: String = "高三10月月考",
-    val latestExamDate: String = "2026-10-01",
-    // TODO: 硬编码占位，后续新增 ExamSummary 实体后替换
-    val latestTotalScore: Int = 562,
-    val latestFullScore: Int = 750,
-    val deltaFromLast: Int = 12,
-    val classRank: Int = 15,
-    val gradeRank: Int = 120,
-    val totalRate: Float = 0.749f,
-    /** 目标分：后续从目标院校换算 */
+    val isLoading: Boolean = true,
+    /** 是否已录入任何成绩；false 时页面展示空态 */
+    val hasScores: Boolean = false,
+    val latestExamName: String = "",
+    val latestExamDate: String = "",
+    val latestTotalScore: Int = 0,
+    val latestFullScore: Int = 0,
+    /** 较上一次考试的总分差；无上一次时为 null，UI 隐藏变化标签 */
+    val deltaFromLast: Int? = null,
+    val classRank: Int? = null,
+    val gradeRank: Int? = null,
+    val totalRate: Float = 0f,
+    /** 目标分：暂无数据源（待接入目标院校换算），暂保留占位值 */
     val targetScore: Int = 680,
     val trendRange: TrendRange = TrendRange.Recent6,
     val trendPoints: List<TrendPoint> = emptyList(),
     val analysisTab: AnalysisTab = AnalysisTab.Radar,
     val selectedSubject: String = "数学",
     val subjectRates: List<SubjectScore> = emptyList(),
+    val subjectTrend: SubjectTrend = SubjectTrend(),
     val historyGroups: List<HistoryGroup> = emptyList(),
 )
 
@@ -87,42 +107,37 @@ private data class AnalysisControls(
     val subject: String,
 )
 
-/** TODO: 占位考试历史，后续由 ExamSummary 实体提供 */
-private val DEFAULT_EXAMS = listOf(
-    ExamHistoryItem(1, "高三10月月考", LocalDate.of(2026, 10, 1), 562, 750, 12, 15, 120),
-    ExamHistoryItem(2, "九月阶段测", LocalDate.of(2026, 9, 18), 550, 750, 8, 22, 168),
-    ExamHistoryItem(3, "高三开学考", LocalDate.of(2026, 9, 5), 542, 750, 11, 27, 205),
-    ExamHistoryItem(4, "暑期摸底考", LocalDate.of(2026, 8, 12), 531, 750, 23, 30, 231),
-    ExamHistoryItem(5, "高二期末考", LocalDate.of(2026, 7, 8), 508, 750, -5, 35, 288),
-)
-
 @HiltViewModel
 class ScoreViewModelNew @Inject constructor(
     private val scoreRecordRepository: ScoreRecordRepository,
     private val subjectRepository: SubjectRepository,
+    private val examRecordRepository: ExamRecordRepository,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
     private val _trendRange = MutableStateFlow(TrendRange.Recent6)
     private val _analysisTab = MutableStateFlow(AnalysisTab.Radar)
     private val _selectedSubject = MutableStateFlow("数学")
-    private val _exams = MutableStateFlow(DEFAULT_EXAMS)
 
     private val _controls = combine(_trendRange, _analysisTab, _selectedSubject) { range, tab, subject ->
         AnalysisControls(range, tab, subject)
     }
 
     val uiState: StateFlow<ScorePageUiState> = combine(
-        scoreRecordRepository.observeRecent(50),
+        scoreRecordRepository.observeRecords(null),
         subjectRepository.observeSubjects(),
+        examRecordRepository.observeAll(),
+        userPreferences.selectedSubjects,
         _controls,
-        _exams,
-    ) { records, subjects, controls, exams ->
+    ) { records, subjects, exams, selectedSubjects, controls ->
+        val aggregated = aggregateExams(records)
+        val idByName = subjects.associate { it.name to it.id }
         val nameToColor = subjects.associate { it.name to Color(it.color) }
-        // 六科得分率：取该科最近一次成绩（records 已按考试日期倒序）
-        val sixSubjects = listOf("语文", "数学", "英语", "物理", "化学", "生物")
-        val subjectRates = sixSubjects.map { name ->
-            val subject = subjects.firstOrNull { it.name == name }
-            val record = records.firstOrNull { it.subjectId == subject?.id }
+
+        // 各科得分率：取该科最近一次成绩（records 未保证顺序，显式取日期最大者）
+        val subjectRates = (Constants.REQUIRED_SUBJECT_NAMES + selectedSubjects).map { name ->
+            val subjectId = idByName[name]
+            val record = records.filter { it.subjectId == subjectId }.maxByOrNull { it.examDate }
             val rate = if (record != null && record.fullScore > 0) {
                 (record.score / record.fullScore).toFloat()
             } else {
@@ -135,40 +150,65 @@ class ScoreViewModelNew @Inject constructor(
             )
         }
 
-        // TODO: 硬编码占位，后续从 ExamSummary 获取每次考试的总分
-        val trendPoints = when (controls.range) {
-            TrendRange.Recent6 -> listOf(
-                TrendPoint("5月", 508), TrendPoint("6月", 515),
-                TrendPoint("7月", 531), TrendPoint("8月", 540),
-                TrendPoint("9月", 550), TrendPoint("10月", 562),
-            )
+        // 单科趋势：所选科目历次成绩，按考试日期正序
+        val subjectRecords = records
+            .filter { it.subjectId == idByName[controls.subject] }
+            .sortedBy { it.examDate }
+        val subjectTrend = SubjectTrend(
+            points = subjectRecords.map { TrendPoint(monthLabel(it.examDate), it.score.toInt()) },
+            fullScore = subjectRecords.lastOrNull()?.fullScore?.toInt() ?: 0,
+            latest = subjectRecords.lastOrNull()?.score?.toInt(),
+        )
 
-            TrendRange.Recent10 -> listOf(
-                TrendPoint("1月", 480), TrendPoint("2月", 485),
-                TrendPoint("3月", 490), TrendPoint("4月", 500),
-                TrendPoint("5月", 508), TrendPoint("6月", 515),
-                TrendPoint("7月", 531), TrendPoint("8月", 540),
-                TrendPoint("9月", 550), TrendPoint("10月", 562),
-            )
+        // 总分趋势：按 range 从真实考试序列截取（正序）
+        val ascending = aggregated.asReversed()
+        val ranged = when (controls.range) {
+            TrendRange.Recent6 -> ascending.takeLast(6)
+            TrendRange.Recent10 -> ascending.takeLast(10)
+            TrendRange.All -> ascending
+        }
+        val trendPoints = ranged.map { TrendPoint(monthLabel(it.date), it.totalScore) }
 
-            TrendRange.All -> listOf(
-                TrendPoint("9月", 460), TrendPoint("10月", 470),
-                TrendPoint("11月", 480), TrendPoint("12月", 485),
-                TrendPoint("1月", 480), TrendPoint("2月", 485),
-                TrendPoint("3月", 490), TrendPoint("4月", 500),
-                TrendPoint("5月", 508), TrendPoint("6月", 515),
-                TrendPoint("7月", 531), TrendPoint("8月", 540),
-                TrendPoint("9月", 550), TrendPoint("10月", 562),
+        // 历史记录：聚合 -> 计算与上一次考试的差值（aggregated 为日期倒序）
+        val history = aggregated.mapIndexed { index, exam ->
+            val previous = aggregated.getOrNull(index + 1)
+            val rank = rankRecordFor(exams, exam.name)
+            ExamHistoryItem(
+                id = examNameToId(exam.name),
+                examName = exam.name,
+                date = exam.date.toLocalDate(),
+                totalScore = exam.totalScore,
+                fullScore = exam.fullScore,
+                deltaFromLast = previous?.let { exam.totalScore - it.totalScore },
+                classRank = rank?.classRank,
+                gradeRank = rank?.gradeRank,
             )
         }
 
+        val latest = aggregated.firstOrNull()
+        val previous = aggregated.getOrNull(1)
+        val latestRank = latest?.let { rankRecordFor(exams, it.name) }
+
         ScorePageUiState(
-            subjectRates = subjectRates,
+            isLoading = false,
+            hasScores = latest != null,
+            latestExamName = latest?.name.orEmpty(),
+            latestExamDate = latest?.date?.let { DateUtils.formatDate(it) }.orEmpty(),
+            latestTotalScore = latest?.totalScore ?: 0,
+            latestFullScore = latest?.fullScore ?: 0,
+            deltaFromLast = previous?.let { (latest?.totalScore ?: 0) - it.totalScore },
+            classRank = latestRank?.classRank,
+            gradeRank = latestRank?.gradeRank,
+            totalRate = latest?.let { exam ->
+                if (exam.fullScore > 0) exam.totalScore.toFloat() / exam.fullScore else 0f
+            } ?: 0f,
             trendRange = controls.range,
             trendPoints = trendPoints,
             analysisTab = controls.tab,
             selectedSubject = controls.subject,
-            historyGroups = groupByMonth(exams),
+            subjectRates = subjectRates,
+            subjectTrend = subjectTrend,
+            historyGroups = groupByMonth(history),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -188,11 +228,22 @@ class ScoreViewModelNew @Inject constructor(
         _selectedSubject.value = subject
     }
 
-    /** TODO: 仅内存删除占位，接入 ExamSummary 后改为删库 */
-    fun deleteExam(id: Long) {
-        _exams.value = _exams.value.filterNot { it.id == id }
+    /** 删除一次考试：删掉该考试名下的全部单科记录（排名行无删除接口，保留不影响展示）。 */
+    fun deleteExam(examName: String) {
+        viewModelScope.launch {
+            scoreRecordRepository.observeRecords(null).first()
+                .filter { it.examName == examName }
+                .forEach { scoreRecordRepository.deleteRecord(it) }
+        }
     }
 }
+
+/** 考试日期 → X 轴标签（如「10月」）。 */
+private fun monthLabel(date: Date): String =
+    "${date.toInstant().atZone(ZoneId.systemDefault()).monthValue}月"
+
+private fun Date.toLocalDate(): LocalDate =
+    toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
 
 /** 按考试日期相对当前月份分组：本月 / 上月 / 更早。 */
 private fun groupByMonth(exams: List<ExamHistoryItem>): List<HistoryGroup> {

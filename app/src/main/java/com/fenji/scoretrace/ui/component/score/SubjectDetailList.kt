@@ -115,7 +115,7 @@ private fun SubjectDetailRow(subject: SubjectDetail) {
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "班均 ${subject.classAvg}",
+                text = "班均 ${subject.classAvg?.toString() ?: "—"}",
                 fontSize = 12.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
@@ -149,23 +149,39 @@ private fun SubjectDetailRow(subject: SubjectDetail) {
             }
             Spacer(modifier = Modifier.width(10.dp))
 
-            val surpassColor = if (subject.surpassRate >= 0.5f) {
-                ScoreTraceColors.SuccessGreen
+            if (subject.surpassRate != null) {
+                val surpassColor = if (subject.surpassRate >= 0.5f) {
+                    ScoreTraceColors.SuccessGreen
+                } else {
+                    ScoreTraceColors.ErrorRed
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(surpassColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = "超越 ${String.format(Locale.US, "%.0f", subject.surpassRate * 100)}%",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = surpassColor,
+                    )
+                }
             } else {
-                ScoreTraceColors.ErrorRed
-            }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(surpassColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(
-                    text = "超越 ${String.format(Locale.US, "%.0f", subject.surpassRate * 100)}%",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = surpassColor,
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ScoreTraceColors.CardBorderLight)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = "数据不足",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = ScoreTraceColors.TextTertiaryLight,
+                    )
+                }
             }
         }
     }
