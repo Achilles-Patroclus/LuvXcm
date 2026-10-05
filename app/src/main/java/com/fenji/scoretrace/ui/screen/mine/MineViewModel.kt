@@ -49,6 +49,8 @@ data class MineUiState(
     val fontSize: String = "标准",
     /** 当前选科（3+1+2：1 门首选 + 2 门再选），来自 UserPreferences */
     val selectedSubjects: List<String> = emptyList(),
+    /** 所在省份（省级行政区名），来自 UserPreferences */
+    val province: String = "云南",
 )
 
 @HiltViewModel
@@ -79,11 +81,13 @@ class MineViewModel @Inject constructor(
             scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
             studyTaskRepository.observeTasks(null),
             userPreferences.selectedSubjects,
-        ) { scores, tasks, subjects ->
+            userPreferences.province,
+        ) { scores, tasks, subjects, province ->
             MineStats(
                 scoreCount = scores.size,
                 taskCompletedCount = tasks.count { it.isCompleted },
                 selectedSubjects = subjects,
+                province = province,
             )
         },
     ) { darkTheme, autoPlayMusic, gaokaoTimestamp, targetSchool, stats ->
@@ -95,6 +99,7 @@ class MineViewModel @Inject constructor(
             scoreRecordCount = stats.scoreCount,
             taskCompletedCount = stats.taskCompletedCount,
             selectedSubjects = stats.selectedSubjects,
+            province = stats.province,
             darkTheme = darkTheme,
             autoPlayMusic = autoPlayMusic,
         )
@@ -114,6 +119,10 @@ class MineViewModel @Inject constructor(
 
     fun setAutoPlayMusic(value: Boolean) {
         viewModelScope.launch { userPreferences.setAutoPlayMusic(value) }
+    }
+
+    fun setProvince(value: String) {
+        viewModelScope.launch { userPreferences.setProvince(value) }
     }
 
     fun refreshNetworkIp() {
@@ -147,6 +156,7 @@ class MineViewModel @Inject constructor(
         val scoreCount: Int,
         val taskCompletedCount: Int,
         val selectedSubjects: List<String>,
+        val province: String,
     )
 
     private companion object {

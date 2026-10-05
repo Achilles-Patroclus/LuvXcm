@@ -69,6 +69,23 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    /**
+     * 用户所在省份（省级行政区名称）；未设置时默认「云南」（兼容存量用户）。
+     *
+     * 注意：本字段目前仅用于 System Prompt 注入与多地区推广预留设置入口。
+     * 分数线相关的展示逻辑仍按云南写定——本科线 435/465、特招线 505/545，
+     * 以及云南 C9 投档线均为硬编码，未随省份切换，属于下一阶段任务。
+     */
+    val province: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_PROVINCE] ?: DEFAULT_PROVINCE
+    }
+
+    suspend fun setProvince(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_PROVINCE] = value
+        }
+    }
+
     /** 今日 AI 重点文案（缓存） */
     val aiFocus: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_AI_FOCUS]
@@ -102,11 +119,15 @@ class UserPreferences @Inject constructor(
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")
         val KEY_DARK_THEME = booleanPreferencesKey("dark_theme")
         val KEY_SELECTED_SUBJECTS = stringPreferencesKey("selected_subjects")
+        val KEY_PROVINCE = stringPreferencesKey("province")
         val KEY_AI_FOCUS = stringPreferencesKey("ai_focus")
         val KEY_AI_FOCUS_DATE = stringPreferencesKey("ai_focus_date")
         val KEY_AI_FOCUS_SIGNAL = stringPreferencesKey("ai_focus_signal")
 
         const val SUBJECT_SEPARATOR = ","
         const val DEFAULT_SELECTED_SUBJECTS = "物理,化学,生物"
+
+        /** 默认省份：项目面向云南考生，存量用户无该字段时回落到此值。 */
+        const val DEFAULT_PROVINCE = "云南"
     }
 }

@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,11 +30,12 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
 /**
  * AI 助手页面顶部标题栏。
- * 左："AI 助手" + 绿色"在线"标签（带绿点）
+ * 左：圆形渐变 AI 头像 + "AI 助手" + 动态网络状态标签（在线绿点 / 离线灰点）
  * 右：新建对话、历史记录两个白色圆形按钮
  */
 @Composable
 fun AiTopBar(
+    isOnline: Boolean,
     onNewChat: () -> Unit,
     onHistoryClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -43,6 +46,8 @@ fun AiTopBar(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        AiAvatar()
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = "AI 助手",
             fontSize = 22.sp,
@@ -50,7 +55,7 @@ fun AiTopBar(
             color = ScoreTraceColors.TextPrimaryLight,
         )
         Spacer(modifier = Modifier.width(10.dp))
-        OnlineBadge()
+        OnlineBadge(isOnline = isOnline)
 
         Spacer(modifier = Modifier.weight(1f))
 
@@ -69,12 +74,33 @@ fun AiTopBar(
     }
 }
 
+/** 顶部圆形渐变 AI 头像，与欢迎区大图标同款蓝青渐变。 */
 @Composable
-private fun OnlineBadge() {
+private fun AiAvatar() {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(ScoreTraceColors.BrandGradient)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_smart_toy),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+/** 网络状态徽章：在线绿点 + 「在线」，离线灰点 + 「离线」。 */
+@Composable
+private fun OnlineBadge(isOnline: Boolean) {
+    val accent = if (isOnline) ScoreTraceColors.SuccessGreen else ScoreTraceColors.TextTertiaryLight
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(ScoreTraceColors.SuccessGreen.copy(alpha = 0.12f))
+            .background(accent.copy(alpha = 0.12f))
             .padding(horizontal = 8.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -82,14 +108,14 @@ private fun OnlineBadge() {
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(ScoreTraceColors.SuccessGreen),
+                .background(accent),
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = "在线",
+            text = if (isOnline) "在线" else "离线",
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = ScoreTraceColors.SuccessGreen,
+            color = accent,
         )
     }
 }

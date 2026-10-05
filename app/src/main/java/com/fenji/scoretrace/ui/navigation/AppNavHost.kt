@@ -199,7 +199,7 @@ fun AppNavHost(
                     onMusicPanelChange = { showMusicPanel = it },
                     onOpenScore = { navController.navigateToTab(Screen.Score) },
                     onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
-                    onOpenAiScore = { navController.navigate(Screen.AiScoreInput.route) },
+                    onOpenAiScore = { navController.navigate(Screen.AiScoreInput.createRoute()) },
                     onOpenNotification = { navController.navigate(Screen.Notifications.route) },
                     onOpenTimer = { navController.navigate(Screen.StudyTimer.route) },
                 )
@@ -219,6 +219,9 @@ fun AppNavHost(
                     .collectAsStateWithLifecycle()
                 AiScreen(
                     onOpenHistory = { navController.navigate(Screen.AiHistory.route) },
+                    onOpenAiScore = { pickImage ->
+                        navController.navigate(Screen.AiScoreInput.createRoute(pickImage))
+                    },
                     loadConversationId = loadConversationId,
                     newChatTick = newChatTick,
                     onCommandConsumed = {
@@ -267,8 +270,17 @@ fun AppNavHost(
                     onSaved = { navController.popBackStack() },
                 )
             }
-            composable(Screen.AiScoreInput.route) {
+            composable(
+                route = Screen.AiScoreInput.route,
+                arguments = listOf(
+                    navArgument(Screen.AiScoreInput.ARG_AUTO_PICK) {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+            ) { entry ->
                 AiScoreInputScreen(
+                    autoPickImage = entry.arguments?.getBoolean(Screen.AiScoreInput.ARG_AUTO_PICK) ?: false,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )

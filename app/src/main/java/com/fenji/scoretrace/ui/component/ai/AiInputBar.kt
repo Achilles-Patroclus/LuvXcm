@@ -89,7 +89,7 @@ fun AiInputBar(
                 modifier = Modifier
                     .weight(1f)
                     .height(44.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(ScoreTraceColors.PageBackgroundLight)
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.CenterStart,
@@ -123,7 +123,7 @@ fun AiInputBar(
 
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(
                         if (isSendEnabled) {

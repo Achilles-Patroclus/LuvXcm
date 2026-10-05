@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,10 +75,12 @@ private fun QuickActionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shape = RoundedCornerShape(20.dp)
     Column(
         modifier = modifier
-            .height(112.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(128.dp)
+            .shadow(elevation = 3.dp, shape = shape, clip = false)
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(14.dp),
@@ -85,8 +88,8 @@ private fun QuickActionCard(
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(48.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(action.iconTint.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -94,7 +97,7 @@ private fun QuickActionCard(
                 painter = painterResource(action.iconRes),
                 contentDescription = action.title,
                 tint = action.iconTint,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
 

@@ -80,6 +80,7 @@ private val FORM_SUBJECTS = listOf(
 fun AiScoreInputScreen(
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    autoPickImage: Boolean = false,
     viewModel: AiScoreInputViewModel = hiltViewModel(),
 ) {
     val parseHint by viewModel.parseHint.collectAsStateWithLifecycle()
@@ -107,6 +108,10 @@ fun AiScoreInputScreen(
             showTypeDialog = true
             viewModel.consumeReopenTypeSelector()
         }
+    }
+    // 从 AI 助手「从相册选图」进入时，直接弹出图片类型选择
+    LaunchedEffect(autoPickImage) {
+        if (autoPickImage) showTypeDialog = true
     }
     LaunchedEffect(parseHint) {
         parseHint?.let {

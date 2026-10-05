@@ -28,24 +28,14 @@ class DeepSeekRepository @Inject constructor(
     private val gson: Gson,
 ) {
 
-    /** 系统提示词：定义 AI 助手的高考辅导角色与回答风格。 */
-    private val systemPrompt = """
-        你是 ScoreTrace 高考备考助手，一位经验丰富的高中全科辅导老师。
-        你的任务是帮助高三学生备考高考，涵盖语文、数学、英语、物理、化学、生物、政治、历史、地理。
-        回答要求：
-        1. 简洁明了，重点突出，避免冗长
-        2. 解题时给出步骤和思路，不只是答案
-        3. 用学生能理解的语言，避免过于学术化
-        4. 涉及具体题目时，先分析考点再解答
-        5. 鼓励性语气，帮助学生建立信心
-        6. 如果问题不明确，主动询问更多信息
-    """.trimIndent()
-
-    /** 非流式对话（一次性返回完整结果）。 */
-    suspend fun chat(messages: List<ChatRequest.Message>): Result<ChatResponse> {
+    /** 非流式对话（一次性返回完整结果）。[systemPrompt] 可定制；缺省用默认高考辅导角色。 */
+    suspend fun chat(
+        messages: List<ChatRequest.Message>,
+        systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
+    ): Result<ChatResponse> {
         return try {
             val response = apiService.chatCompletion(
-                ChatRequest(messages = withSystemPrompt(messages), stream = false),
+                ChatRequest(messages = withSystemPrompt(messages, systemPrompt), stream = false),
             )
             Result.success(response)
         } catch (e: Exception) {
@@ -55,10 +45,14 @@ class DeepSeekRepository @Inject constructor(
 
     /**
      * 流式对话（SSE），每个 emit 是一段增量文本；emit 空字符串表示结束。
+     * [systemPrompt] 可定制；缺省用默认高考辅导角色。
      */
-    fun chatStream(messages: List<ChatRequest.Message>): Flow<String> = flow {
+    fun chatStream(
+        messages: List<ChatRequest.Message>,
+        systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
+    ): Flow<String> = flow {
         val requestBody = gson.toJson(
-            ChatRequest(messages = withSystemPrompt(messages), stream = true),
+            ChatRequest(messages = withSystemPrompt(messages, systemPrompt), stream = true),
         )
             .toRequestBody("application/json".toMediaType())
 
@@ -102,7 +96,10 @@ class DeepSeekRepository @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun withSystemPrompt(messages: List<ChatRequest.Message>): List<ChatRequest.Message> =
+    private fun withSystemPrompt(
+        messages: List<ChatRequest.Message>,
+        systemPrompt: String,
+    ): List<ChatRequest.Message> =
         listOf(ChatRequest.Message(role = "system", content = systemPrompt)) + messages
 
     private companion object {
@@ -110,5 +107,18 @@ class DeepSeekRepository @Inject constructor(
         const val CHAT_COMPLETIONS_PATH = "chat/completions"
         const val SSE_DATA_PREFIX = "data: "
         const val SSE_DONE = "[DONE]"
+
+        /** 默认系统提示词：面向没有个性化上下文的场景（如首页「今日 AI 重点」）。 */
+        val DEFAULT_SYSTEM_PROMPT = """
+            你是 ScoreTrace 高考备考助手，一位经验丰富的高中全科辅导老师。
+            你的任务是帮助高三学生备考高考，涵盖语文、数学、英语、物理、化学、生物、政治、历史、地理。
+            回答要求：
+            1. 简洁明了，重点突出，避免冗长
+            2. 解题时给出步骤和思路，不只是答案
+            3. 用学生能理解的语言，避免过于学术化
+            4. 涉及具体题目时，先分析考点再解答
+            5. 鼓励性语气，帮助学生建立信心
+            6. 如果问题不明确，主动询问更多信息
+        """.trimIndent()
     }
 }

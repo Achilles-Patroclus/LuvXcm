@@ -1,7 +1,12 @@
 package com.fenji.scoretrace.ui.screen.mine
 
 import android.content.ClipData
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,11 +28,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,6 +72,7 @@ fun MineScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var showClearDataDialog by rememberSaveable { mutableStateOf(false) }
+    var showProvinceDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.toast.collect { AppToast.success(it) }
@@ -114,6 +122,14 @@ fun MineScreen(
                     title = "选科配置",
                     value = state.selectedSubjects.joinToString(" · ").ifBlank { "未设置" },
                     onClick = onOpenSubjectConfig,
+                )
+                SettingDivider()
+                SettingNavigateItem(
+                    icon = painterResource(R.drawable.ic_public),
+                    iconBgColor = ScoreTraceColors.AccentCyanOnLight,
+                    title = "省份",
+                    value = state.province,
+                    onClick = { showProvinceDialog = true },
                 )
             }
 
@@ -258,4 +274,68 @@ fun MineScreen(
             },
         )
     }
+
+    if (showProvinceDialog) {
+        ProvincePickerDialog(
+            current = state.province,
+            onSelect = { province ->
+                viewModel.setProvince(province)
+                showProvinceDialog = false
+            },
+            onDismiss = { showProvinceDialog = false },
+        )
+    }
 }
+
+/** 省份选择器：全国 34 个省级行政区，当前项高亮。 */
+@Composable
+private fun ProvincePickerDialog(
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择省份") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                CHINA_PROVINCES.forEach { province ->
+                    val selected = province == current
+                    Text(
+                        text = province,
+                        fontSize = 15.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextPrimaryLight,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (selected) ScoreTraceColors.BrandPrimary.copy(alpha = 0.10f) else Color.Transparent,
+                            )
+                            .clickable { onSelect(province) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+/** 全国省级行政区（34 个）。 */
+private val CHINA_PROVINCES = listOf(
+    "北京", "天津", "河北", "山西", "内蒙古",
+    "辽宁", "吉林", "黑龙江", "上海", "江苏",
+    "浙江", "安徽", "福建", "江西", "山东",
+    "河南", "湖北", "湖南", "广东", "广西",
+    "海南", "重庆", "四川", "贵州", "云南",
+    "西藏", "陕西", "甘肃", "青海", "宁夏",
+    "新疆", "香港", "澳门", "台湾",
+)

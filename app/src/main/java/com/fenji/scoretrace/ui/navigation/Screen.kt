@@ -13,8 +13,12 @@ sealed class Screen(val route: String) {
     /** 目标院校选择/编辑：从首页目标院校卡或「我的」页进入，全屏页 */
     data object TargetSchool : Screen("target_school")
 
-    /** AI 录成绩：从首页快捷功能进入，全屏页 */
-    data object AiScoreInput : Screen("ai_score_input")
+    /** AI 录成绩：从首页快捷功能或 AI 助手「+」菜单进入，全屏页。
+     *  [ARG_AUTO_PICK] 为 true 时进入后自动弹出图片类型选择（用于「从相册选图」）。 */
+    data object AiScoreInput : Screen("ai_score_input?autoPick={autoPick}") {
+        const val ARG_AUTO_PICK = "autoPick"
+        fun createRoute(autoPick: Boolean = false): String = "ai_score_input?autoPick=$autoPick"
+    }
 
     /** 通知中心：从首页铃铛进入，全屏页 */
     data object Notifications : Screen("notifications")
