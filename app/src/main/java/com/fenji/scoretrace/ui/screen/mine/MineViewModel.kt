@@ -102,11 +102,6 @@ class MineViewModel @Inject constructor(
         viewModelScope.launch { userPreferences.setAutoPlayMusic(value) }
     }
 
-    /** 保存选科（1 门首选 + 2 门再选），持久化到 UserPreferences。 */
-    fun updateSelectedSubjects(subjects: List<String>) {
-        viewModelScope.launch { userPreferences.setSelectedSubjects(subjects) }
-    }
-
     fun refreshNetworkIp() {
         viewModelScope.launch {
             _networkIp.value = IP_LOADING

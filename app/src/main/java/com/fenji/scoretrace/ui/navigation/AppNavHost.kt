@@ -68,6 +68,7 @@ import com.fenji.scoretrace.ui.screen.score.AiScoreInputScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreScreenNew
 import com.fenji.scoretrace.ui.screen.settings.SettingsScreen
+import com.fenji.scoretrace.ui.screen.subject.SubjectConfigScreen
 import com.fenji.scoretrace.util.AppToast
 
 /**
@@ -90,7 +91,8 @@ fun AppNavHost(
     val hideBottomBar = currentRoute?.startsWith("score_detail") == true ||
         currentRoute == Screen.TargetSchool.route ||
         currentRoute == Screen.AiScoreInput.route ||
-        currentRoute == Screen.Notifications.route
+        currentRoute == Screen.Notifications.route ||
+        currentRoute == Screen.SubjectConfig.route
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(snackbarHostState) { AppToast.attach(snackbarHostState) }
@@ -228,6 +230,7 @@ fun AppNavHost(
             ) {
                 MineScreen(
                     onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
+                    onOpenSubjectConfig = { navController.navigate(Screen.SubjectConfig.route) },
                 )
             }
             composable(Screen.TargetSchool.route) {
@@ -244,6 +247,12 @@ fun AppNavHost(
             }
             composable(Screen.Notifications.route) {
                 NotificationScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SubjectConfig.route) {
+                SubjectConfigScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
             }
             composable(Screen.Settings.route) { SettingsScreen() }
         }

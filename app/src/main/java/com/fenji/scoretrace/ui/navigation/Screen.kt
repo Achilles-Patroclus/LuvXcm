@@ -19,6 +19,9 @@ sealed class Screen(val route: String) {
     /** 通知中心：从首页铃铛进入，全屏页 */
     data object Notifications : Screen("notifications")
 
+    /** 选科配置：从「我的」页进入，全屏页 */
+    data object SubjectConfig : Screen("subject_config")
+
     /** 成绩详情：从成绩页历史记录进入，携带考试 ID */
     data class ScoreDetail(val examId: Long) : Screen(ROUTE) {
         companion object {
