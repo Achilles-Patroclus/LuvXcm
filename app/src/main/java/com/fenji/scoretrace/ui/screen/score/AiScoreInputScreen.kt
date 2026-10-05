@@ -56,6 +56,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.fenji.scoretrace.R
+import com.fenji.scoretrace.data.remote.glm.dto.ScoreSheetType
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.AppToast
 import com.fenji.scoretrace.util.DateUtils
@@ -86,13 +87,25 @@ fun AiScoreInputScreen(
     val loadingStage by viewModel.loadingStage.collectAsStateWithLifecycle()
     val pendingNameInput by viewModel.pendingNameInput.collectAsStateWithLifecycle()
     val subjectMismatch by viewModel.subjectMismatch.collectAsStateWithLifecycle()
+    val reopenTypeSelector by viewModel.reopenTypeSelector.collectAsStateWithLifecycle()
     var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showTypeDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedSheetType by remember { mutableStateOf<ScoreSheetType?>(null) }
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
-        if (uri != null) {
+        val type = selectedSheetType
+        if (uri != null && type != null) {
             pickedImageUri = uri
-            viewModel.parseScoreImage(uri)
+            viewModel.parseScoreImage(uri, type)
+        }
+    }
+
+    // 内容审核（1301）失败 → 重新弹出类型选择
+    LaunchedEffect(reopenTypeSelector) {
+        if (reopenTypeSelector) {
+            showTypeDialog = true
+            viewModel.consumeReopenTypeSelector()
         }
     }
     LaunchedEffect(parseHint) {
@@ -184,11 +197,7 @@ fun AiScoreInputScreen(
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.12f))
-                                .clickable {
-                                    imagePicker.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                                    )
-                                },
+                                .clickable { showTypeDialog = true },
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -308,6 +317,19 @@ fun AiScoreInputScreen(
         }
     }
 
+    if (showTypeDialog) {
+        SheetTypeDialog(
+            onSelect = { type ->
+                selectedSheetType = type
+                showTypeDialog = false
+                imagePicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+            onDismiss = { showTypeDialog = false },
+        )
+    }
+
     if (pendingNameInput) {
         NameInputDialog(
             onConfirm = viewModel::onNameSubmitted,
@@ -321,6 +343,60 @@ fun AiScoreInputScreen(
             current = mismatch.current,
             onConfirm = viewModel::onConfirmSubjectSwitch,
             onDismiss = viewModel::onCancelSubjectSwitch,
+        )
+    }
+}
+
+@Composable
+private fun SheetTypeDialog(
+    onSelect: (ScoreSheetType) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("请选择图片类型") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TypeOption(
+                    title = "📄 个人成绩单",
+                    subtitle = "单人多科成绩表，选完直接识别回填",
+                    onClick = { onSelect(ScoreSheetType.PERSONAL) },
+                )
+                TypeOption(
+                    title = "📋 班级排名表",
+                    subtitle = "多人成绩表，需输入姓名后提取对应行",
+                    onClick = { onSelect(ScoreSheetType.CLASS_RANKING) },
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun TypeOption(title: String, subtitle: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.06f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = ScoreTraceColors.TextPrimaryLight,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = subtitle,
+            fontSize = 12.sp,
+            color = ScoreTraceColors.TextSecondaryLight,
         )
     }
 }

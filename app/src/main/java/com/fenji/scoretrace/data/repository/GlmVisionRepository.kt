@@ -35,12 +35,14 @@ class GlmException(val code: String?, override val message: String) : Exception(
 
 interface GlmVisionRepository {
     /**
-     * 拍照识分统一入口：先判断图片类型，再按类型提取（个人成绩单 / 按姓名从排名表提取）。
-     * [imageDataUrl] 为 `data:image/jpeg;base64,...`；[name] 为空且检测到排名表时返回 [VisionResult.ClassRanking]。
-     * [onStage] 在每个阶段开始时回调，供 UI 展示分阶段 loading 文案。
+     * 拍照识分统一入口：类型由**用户主动选择**（避免模型误判与内容审核）。
+     * [type] = PERSONAL → 直接提取；= CLASS_RANKING 且 [name] 为空 → 返回 [VisionResult.ClassRanking]
+     *（触发姓名弹窗），有 [name] → 按姓名提取该行。
+     * [imageDataUrl] 为 `data:image/jpeg;base64,...`；[onStage] 在各阶段开始时回调，供 UI 展示分阶段 loading。
      */
     suspend fun recognizeScoreSheet(
         imageDataUrl: String,
+        type: ScoreSheetType,
         name: String? = null,
         onStage: (VisionStage) -> Unit = {},
     ): Result<VisionResult>
@@ -54,39 +56,38 @@ class DefaultGlmVisionRepository @Inject constructor(
 
     override suspend fun recognizeScoreSheet(
         imageDataUrl: String,
+        type: ScoreSheetType,
         name: String?,
         onStage: (VisionStage) -> Unit,
-    ): Result<VisionResult> {
-        onStage(VisionStage.DETECTING)
-        val type = detectSheetType(imageDataUrl).getOrElse { error ->
-            return Result.success(VisionResult.Error(codeOf(error), messageOf(error)))
+    ): Result<VisionResult> = when (type) {
+        ScoreSheetType.PERSONAL -> {
+            onStage(VisionStage.EXTRACTING)
+            extractPersonalScore(imageDataUrl).fold(
+                onSuccess = { Result.success(VisionResult.Personal(it)) },
+                onFailure = { Result.success(VisionResult.Error(codeOf(it), messageOf(it))) },
+            )
         }
-        return when (type) {
-            ScoreSheetType.PERSONAL -> {
-                onStage(VisionStage.EXTRACTING)
-                extractPersonalScore(imageDataUrl).fold(
+
+        ScoreSheetType.CLASS_RANKING -> {
+            if (name.isNullOrBlank()) {
+                Result.success(VisionResult.ClassRanking("检测到班级排名表，请输入你的姓名"))
+            } else {
+                onStage(VisionStage.SEARCHING)
+                extractClassRankingRow(imageDataUrl, name).fold(
                     onSuccess = { Result.success(VisionResult.Personal(it)) },
                     onFailure = { Result.success(VisionResult.Error(codeOf(it), messageOf(it))) },
                 )
             }
-
-            ScoreSheetType.CLASS_RANKING -> {
-                if (name.isNullOrBlank()) {
-                    Result.success(VisionResult.ClassRanking("检测到班级排名表，请输入你的姓名"))
-                } else {
-                    onStage(VisionStage.SEARCHING)
-                    extractClassRankingRow(imageDataUrl, name).fold(
-                        onSuccess = { Result.success(VisionResult.Personal(it)) },
-                        onFailure = { Result.success(VisionResult.Error(codeOf(it), messageOf(it))) },
-                    )
-                }
-            }
-
-            ScoreSheetType.OTHER -> Result.success(VisionResult.Other("图片与成绩无关"))
         }
+
+        // UI 目前只提供 PERSONAL / CLASS_RANKING；保留分支以防未来扩展
+        ScoreSheetType.OTHER -> Result.success(VisionResult.Error("UNSUPPORTED", "不支持的图片类型"))
     }
 
-    /** 步骤一：判断图片类型（输出极短，max_tokens 64）。 */
+    /**
+     * 保留供未来「自动判断类型」使用；当前主流程已改为用户主动选择类型，不再调用。
+     */
+    @Suppress("unused")
     private suspend fun detectSheetType(imageDataUrl: String): Result<ScoreSheetType> =
         callModel(imageDataUrl, TYPE_PROMPT, MAX_TOKENS_TYPE).mapCatching { content ->
             val dto = parseJson(cleanJsonContent(content), TypeRaw::class.java)
