@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.entity.Subject
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
+import com.fenji.scoretrace.data.repository.GlmException
 import com.fenji.scoretrace.data.repository.GlmVisionRepository
 import com.fenji.scoretrace.data.repository.NotificationRepository
 import com.fenji.scoretrace.data.repository.NotificationType
@@ -76,7 +77,7 @@ class AiScoreInputViewModel @Inject constructor(
             _isParsing.value = false
             result
                 .onSuccess { _parsedSheet.value = it }
-                .onFailure { _parseHint.value = "识别失败：${it.message ?: "网络异常"}，请手动录入" }
+                .onFailure { error -> _parseHint.value = describeError(error) }
         }
     }
 
@@ -86,6 +87,20 @@ class AiScoreInputViewModel @Inject constructor(
 
     fun clearParsedSheet() {
         _parsedSheet.value = null
+    }
+
+    /** 把识别错误翻译成用户可读文案：常见码给友好提示，其余带具体错误码。 */
+    private fun describeError(error: Throwable): String {
+        val code = (error as? GlmException)?.code
+        return when (code) {
+            "1305" -> "识别失败：服务繁忙，请稍后重试，也可手动录入"
+            "1301" -> "识别失败：图片可能含敏感内容，请更换后重试"
+            else -> {
+                val detail = error.message?.takeIf { it.isNotBlank() } ?: "网络异常"
+                val prefix = code?.let { "$it - " }.orEmpty()
+                "识别失败：$prefix$detail，请手动录入"
+            }
+        }
     }
 
     /**

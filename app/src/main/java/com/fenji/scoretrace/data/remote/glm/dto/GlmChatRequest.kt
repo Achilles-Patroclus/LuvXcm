@@ -7,7 +7,8 @@ data class GlmChatRequest(
     val model: String = "glm-4v-flash",
     val messages: List<GlmMessage>,
     val temperature: Double = 0.2,
-    @SerializedName("max_tokens") val maxTokens: Int = 2048,
+    // glm-4v-flash 的 max_tokens 合法区间为 [1,1024]，超过会返回 400（错误码 1210）
+    @SerializedName("max_tokens") val maxTokens: Int = 1024,
     val stream: Boolean = false,
 )
 
