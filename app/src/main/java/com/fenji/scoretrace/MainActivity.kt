@@ -24,6 +24,7 @@ import com.fenji.scoretrace.util.LocationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -42,8 +43,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AppLogger.i("AppStart", "MainActivity onCreate")
+        // 同步读取一次主题偏好作首帧初值：否则首帧会先按「跟随系统」渲染，拿到持久化值后再切，
+        // 在「深色/浅色」与系统不一致时出现一次闪色（旧数据 install -r 时更明显）。
+        val initialThemeMode = runCatching { runBlocking { userPreferences.themeMode.first() } }
+            .getOrDefault("system")
         setContent {
-            val themeMode by userPreferences.themeMode.collectAsStateWithLifecycle(initialValue = "system")
+            val themeMode by userPreferences.themeMode.collectAsStateWithLifecycle(initialValue = initialThemeMode)
             val darkTheme = when (themeMode) {
                 "light" -> false
                 "dark" -> true

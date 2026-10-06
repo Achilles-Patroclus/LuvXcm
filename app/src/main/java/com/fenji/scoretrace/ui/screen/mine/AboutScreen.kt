@@ -39,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,7 +77,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(colorResource(R.color.ic_launcher_background)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
