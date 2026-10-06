@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -367,7 +368,7 @@ private fun CodeBlock(code: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF3F4F6))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
@@ -376,7 +377,7 @@ private fun CodeBlock(code: String) {
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
             lineHeight = 18.sp,
-            color = Color(0xFF1F2937),
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -430,7 +431,7 @@ private fun TableRow(
                     color = ScoreTraceColors.TextPrimaryLight,
                     modifier = Modifier
                         .weight(1f)
-                        .background(if (isHeader) Color(0xFFF6F8FC) else Color.Transparent)
+                        .background(if (isHeader) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                 )
             }

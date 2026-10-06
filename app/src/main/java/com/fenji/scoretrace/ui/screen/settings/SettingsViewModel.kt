@@ -20,7 +20,8 @@ import java.util.Date
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val darkTheme: Boolean = false,
+    /** 主题模式：light / dark / system */
+    val themeMode: String = "system",
     val autoPlayMusic: Boolean = true,
     val versionName: String = BuildConfig.VERSION_NAME,
     val gaokaoTimestamp: Long = 0L,
@@ -42,9 +43,6 @@ class SettingsViewModel @Inject constructor(
     private val networkRepository: NetworkRepository,
 ) : ViewModel() {
 
-    // 注：主题偏好目前只保存在内存中，后续接入持久化后再驱动根主题
-    private val darkTheme = MutableStateFlow(false)
-
     private val _ipState = MutableStateFlow<IpUiState>(IpUiState.Loading)
     val ipState: StateFlow<IpUiState> = _ipState.asStateFlow()
 
@@ -61,12 +59,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
     val uiState: StateFlow<SettingsUiState> = combine(
-        darkTheme,
+        userPreferences.themeMode,
         userPreferences.gaokaoTimestamp,
         userPreferences.autoPlayMusic,
-    ) { dark, gaokaoTimestamp, autoPlayMusic ->
+    ) { themeMode, gaokaoTimestamp, autoPlayMusic ->
         SettingsUiState(
-            darkTheme = dark,
+            themeMode = themeMode,
             autoPlayMusic = autoPlayMusic,
             gaokaoTimestamp = gaokaoTimestamp,
             gaokaoDateText = DateUtils.formatDate(Date(gaokaoTimestamp)),
@@ -86,8 +84,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { userPreferences.saveGaokaoTimestamp(timestamp) }
     }
 
-    fun setDarkTheme(enabled: Boolean) {
-        darkTheme.value = enabled
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { userPreferences.setThemeMode(mode) }
     }
 
     fun setAutoPlayMusic(enabled: Boolean) {

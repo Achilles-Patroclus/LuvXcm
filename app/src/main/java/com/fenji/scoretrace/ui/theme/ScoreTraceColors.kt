@@ -1,5 +1,7 @@
 package com.fenji.scoretrace.ui.theme
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
@@ -39,12 +41,14 @@ object ScoreTraceColors {
     val TextSecondary = Color(0xFFFFFFFF).copy(alpha = 0.70f)
     val TextTertiary = Color(0xFFFFFFFF).copy(alpha = 0.50f)
 
-    // 浅色页面上的弱化文字
-    val TextTertiaryLight = Color(0xFF9CA3AF)
+    // 浅色页面上的弱化文字（主题感知）
+    val TextTertiaryLight: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
 
     // ── 描边
     val CardBorder = Color(0xFFFFFFFF).copy(alpha = 0.20f)
-    val CardBorderLight = Color(0xFFE5E7EB)
+    val CardBorderLight: Color
+        @Composable get() = MaterialTheme.colorScheme.outlineVariant
     val HairlineBorder = Color(0xFFFFFFFF).copy(alpha = 0.12f)
     val HairlineBorderLight = Color(0xFF1565C0).copy(alpha = 0.14f)
 
@@ -65,11 +69,14 @@ object ScoreTraceColors {
     val ScoreWarn = Color(0xFFFF9800)
 
     // ── 浅色主题（设计稿 v1）
-    /** 页面背景：浅灰蓝，比纯白多一层呼吸感 */
-    val PageBackgroundLight = Color(0xFFEEF1F8)
+    // 以下语义色改为「主题感知」：浅色主题下取原浅色值，深色主题下随 MaterialTheme 切换。
+    /** 页面背景：浅色 #EEF1F8 / 深色主题背景 */
+    val PageBackgroundLight: Color
+        @Composable get() = MaterialTheme.colorScheme.background
 
-    /** 卡片背景：纯白 */
-    val CardBackgroundLight = Color(0xFFFFFFFF)
+    /** 卡片背景：浅色纯白 / 深色容器面 */
+    val CardBackgroundLight: Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceContainer
 
     /** 品牌主色（设计稿青蓝） */
     val BrandPrimary = Color(0xFF3B82F6)
@@ -86,9 +93,11 @@ object ScoreTraceColors {
     val SchoolPurple = Color(0xFF7C5CFC)
     val SchoolPurpleLight = Color(0xFF9B7FFF)
 
-    /** 文字层级（浅色主题） */
-    val TextPrimaryLight = Color(0xFF1A1A2E)
-    val TextSecondaryLight = Color(0xFF6B7280)
+    /** 文字层级（主题感知） */
+    val TextPrimaryLight: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurface
+    val TextSecondaryLight: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 
     /** 语义色（浅色） */
     val SuccessGreen = Color(0xFF10B981)

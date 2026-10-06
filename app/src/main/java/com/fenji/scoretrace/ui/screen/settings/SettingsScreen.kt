@@ -57,6 +57,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.component.ScreenHeader
+import com.fenji.scoretrace.ui.component.mine.ThemeModeSheet
+import com.fenji.scoretrace.ui.component.mine.themeModeLabel
 import com.fenji.scoretrace.ui.theme.Dimens
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.ui.theme.pressScale
@@ -76,6 +78,7 @@ fun SettingsScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
+    var showThemeSheet by rememberSaveable { mutableStateOf(false) }
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var datePickerInitialMillis by rememberSaveable { mutableStateOf(0L) }
@@ -96,13 +99,15 @@ fun SettingsScreen(
             SettingsGroup(title = "外观") {
                 SettingsRow(
                     icon = painterResource(R.drawable.ic_dark_mode),
-                    title = "深色主题",
-                    subtitle = "跟随此开关切换配色",
+                    title = "主题",
+                    subtitle = "浅色 / 深色 / 跟随系统",
+                    onClick = { showThemeSheet = true },
                     trailing = {
-                        Switch(
-                            checked = state.darkTheme,
-                            onCheckedChange = viewModel::setDarkTheme,
-                            colors = brandSwitchColors(),
+                        Text(
+                            text = themeModeLabel(state.themeMode),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 6.dp),
                         )
                     },
                 )
@@ -205,6 +210,14 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showThemeSheet) {
+        ThemeModeSheet(
+            current = state.themeMode,
+            onSelect = viewModel::setThemeMode,
+            onDismiss = { showThemeSheet = false },
+        )
     }
 
     if (showDatePicker) {
