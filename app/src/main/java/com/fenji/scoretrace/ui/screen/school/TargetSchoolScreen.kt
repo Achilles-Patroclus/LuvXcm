@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fenji.scoretrace.data.model.AdmissionScore
 import com.fenji.scoretrace.data.model.Major
 import com.fenji.scoretrace.data.model.MajorTreeData
 import com.fenji.scoretrace.data.model.SchoolInfo
@@ -171,6 +172,9 @@ fun TargetSchoolScreen(
                                 selectedMajor = uiState.selectedMajor,
                                 currentScore = uiState.currentScore,
                                 majorTree = uiState.majorTree,
+                                province = uiState.province,
+                                primarySubject = uiState.primarySubject,
+                                admission = uiState.admissionScore,
                                 onSelect = { viewModel.onSchoolSelect(school) },
                                 onMajorSelect = viewModel::onMajorSelect,
                                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -313,6 +317,9 @@ private fun SchoolItemCard(
     selectedMajor: Major?,
     currentScore: Int,
     majorTree: MajorTreeData?,
+    province: String,
+    primarySubject: String,
+    admission: AdmissionScore?,
     onSelect: () -> Unit,
     onMajorSelect: (Major) -> Unit,
     modifier: Modifier = Modifier,
@@ -365,6 +372,9 @@ private fun SchoolItemCard(
                         selectedMajor = selectedMajor,
                         currentScore = currentScore,
                         majorTree = majorTree,
+                        province = province,
+                        primarySubject = primarySubject,
+                        admission = admission,
                         onMajorSelect = onMajorSelect,
                     )
                 }

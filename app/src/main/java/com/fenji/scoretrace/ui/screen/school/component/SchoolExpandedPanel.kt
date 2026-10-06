@@ -41,6 +41,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fenji.scoretrace.R
+import com.fenji.scoretrace.data.model.AdmissionScore
 import com.fenji.scoretrace.data.model.Major
 import com.fenji.scoretrace.data.model.MajorTreeData
 import com.fenji.scoretrace.data.model.SchoolInfo
@@ -58,6 +59,12 @@ fun SchoolExpandedPanel(
     selectedMajor: Major?,
     currentScore: Int,
     majorTree: MajorTreeData?,
+    /** 当前用户省份，用于展示本省录取分 */
+    province: String = "云南",
+    /** 当前用户首选科目（物理/历史） */
+    primarySubject: String = "物理",
+    /** 本省录取分；null 表示暂无数据 */
+    admission: AdmissionScore? = null,
     onMajorSelect: (Major) -> Unit,
 ) {
     Column(
@@ -90,6 +97,35 @@ fun SchoolExpandedPanel(
                     text = "/ 750 分",
                     fontSize = 14.sp,
                     color = ScoreTraceColors.TextSecondaryLight,
+                )
+            }
+        }
+
+        // ── 本省录取分（按当前用户省份 + 首选科目）
+        Column {
+            FieldLabel("本省录取分（$province · ${primarySubject}类）")
+            Spacer(modifier = Modifier.height(8.dp))
+            val minScore = admission?.min
+            if (minScore != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = minScore.toString(),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ScoreTraceColors.BrandPrimary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "/ 750 分", fontSize = 14.sp, color = ScoreTraceColors.TextSecondaryLight)
+                    admission.rank?.let { rank ->
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = "最低位次 $rank", fontSize = 13.sp, color = ScoreTraceColors.TextTertiaryLight)
+                    }
+                }
+            } else {
+                Text(
+                    text = "暂无该省份录取数据",
+                    fontSize = 14.sp,
+                    color = ScoreTraceColors.TextTertiaryLight,
                 )
             }
         }

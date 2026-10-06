@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.UserPreferences
 import com.fenji.scoretrace.data.local.entity.TargetSchool
+import com.fenji.scoretrace.data.model.AdmissionScore
 import com.fenji.scoretrace.data.model.Major
 import com.fenji.scoretrace.data.model.MajorTreeData
 import com.fenji.scoretrace.data.model.SchoolInfo
 import com.fenji.scoretrace.data.repository.MajorRepository
+import com.fenji.scoretrace.data.repository.SchoolAdmissionRepository
 import com.fenji.scoretrace.data.repository.SchoolRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
@@ -36,6 +38,12 @@ data class TargetSchoolUiState(
     val selectedSubjects: List<String> = emptyList(),
     /** 当前总分：各科最近一次成绩之和，用于提示「还差多少分」 */
     val currentScore: Int = 0,
+    /** 当前用户省份（来自偏好），用于按省份展示录取分 */
+    val province: String = "云南",
+    /** 当前用户首选科目（物理/历史），用于按科类展示录取分 */
+    val primarySubject: String = "物理",
+    /** 选中院校在「本省 + 首选科目」下的录取分；null 表示暂无数据 */
+    val admissionScore: AdmissionScore? = null,
     val isLoading: Boolean = true,
 )
 
@@ -45,6 +53,7 @@ class TargetSchoolViewModel @Inject constructor(
     private val majorRepository: MajorRepository,
     private val targetSchoolRepository: TargetSchoolRepository,
     private val scoreRecordRepository: ScoreRecordRepository,
+    private val schoolAdmissionRepository: SchoolAdmissionRepository,
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
@@ -64,6 +73,8 @@ class TargetSchoolViewModel @Inject constructor(
         val majorTree = majorRepository.loadMajorTree()
         val target = targetSchoolRepository.observeLatest().first()
         val subjects = userPreferences.selectedSubjects.first()
+        val province = userPreferences.province.first()
+        val primary = subjects.firstOrNull() ?: "物理"
         savedTarget = target
         val selectedSchool = target?.let { saved -> schoolData.schools.find { it.name == saved.schoolName } }
         _uiState.value = TargetSchoolUiState(
@@ -75,6 +86,11 @@ class TargetSchoolViewModel @Inject constructor(
             selectedMajor = findSavedMajor(target?.majorName, majorTree),
             selectedSubjects = subjects,
             currentScore = target?.currentScore?.takeIf { it > 0 } ?: currentTotalScore(),
+            province = province,
+            primarySubject = primary,
+            admissionScore = selectedSchool?.let {
+                schoolAdmissionRepository.getScore(it.id, province, primary)
+            },
             isLoading = false,
         )
     }
@@ -111,12 +127,19 @@ class TargetSchoolViewModel @Inject constructor(
     }
 
     fun onSchoolSelect(school: SchoolInfo) {
-        _uiState.value = _uiState.value.copy(
+        val state = _uiState.value
+        _uiState.value = state.copy(
             selectedSchoolId = school.id,
             // 目标分数自动取该校录取最低分（只读，不允许手动输入）
             targetScore = school.targetScore,
             selectedMajor = null,
+            admissionScore = null,
         )
+        // 异步取本省录取分（按当前省份 + 首选科目）
+        viewModelScope.launch {
+            val admission = schoolAdmissionRepository.getScore(school.id, state.province, state.primarySubject)
+            _uiState.value = _uiState.value.copy(admissionScore = admission)
+        }
     }
 
     /** 专业单选：再点已选专业则取消，回到院校基准分；否则目标分数按该专业热门度上浮。 */
@@ -143,6 +166,7 @@ class TargetSchoolViewModel @Inject constructor(
             selectedSchoolId = null,
             targetScore = 0,
             selectedMajor = null,
+            admissionScore = null,
             searchQuery = "",
             filteredSchools = _uiState.value.schools,
         )

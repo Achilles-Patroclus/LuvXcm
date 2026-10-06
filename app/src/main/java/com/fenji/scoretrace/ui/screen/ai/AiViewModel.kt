@@ -11,13 +11,16 @@ import com.fenji.scoretrace.data.local.entity.ExamRecord
 import com.fenji.scoretrace.data.local.entity.ScoreRecord
 import com.fenji.scoretrace.data.local.entity.Subject
 import com.fenji.scoretrace.data.local.entity.TargetSchool
+import com.fenji.scoretrace.data.model.ScoreLine
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatRequest
 import com.fenji.scoretrace.data.repository.ConversationRepository
 import com.fenji.scoretrace.data.repository.DeepSeekRepository
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
+import com.fenji.scoretrace.data.repository.ProvinceScoreRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
+import com.fenji.scoretrace.util.AppLogger
 import com.fenji.scoretrace.util.AppToast
 import com.fenji.scoretrace.util.DateUtils
 import com.fenji.scoretrace.util.GradeCalculator
@@ -103,6 +106,8 @@ data class UserContext(
     val latestExam: ExamSummary?,
     val weakSubjects: List<String>,
     val hasData: Boolean,
+    /** 用户所在省、按其首选科目解析出的分数线；无数据为 null */
+    val provinceScore: ScoreLine? = null,
 )
 
 @HiltViewModel
@@ -114,6 +119,7 @@ class AiViewModel @Inject constructor(
     private val examRecordRepository: ExamRecordRepository,
     private val targetSchoolRepository: TargetSchoolRepository,
     private val subjectRepository: SubjectRepository,
+    private val provinceScoreRepository: ProvinceScoreRepository,
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -243,7 +249,13 @@ class AiViewModel @Inject constructor(
             val conversationId = ensureConversation(trimmed)
             conversationRepository.addMessage(conversationId, "user", trimmed)
             // 发送前取一次用户数据快照，动态构建 System Prompt
-            val systemPrompt = buildSystemPrompt(userContextFlow().first())
+            val ctx = userContextFlow().first()
+            AppLogger.i(
+                "AiPrompt",
+                "province=${ctx.province} primary=${ctx.selectedSubjects.firstOrNull()} " +
+                    "line=${ctx.provinceScore?.benke}/${ctx.provinceScore?.tezhao}",
+            )
+            val systemPrompt = buildSystemPrompt(ctx)
             try {
                 repository.chatStream(history, systemPrompt).collect { chunk ->
                     if (chunk.isEmpty()) {
@@ -410,6 +422,11 @@ class AiViewModel @Inject constructor(
         },
     ) { target, scores, exams, basics ->
         buildUserContext(target, scores, exams, basics)
+    }.map { ctx ->
+        // 取一次当前省的分数线（按用户首选科目解析），注入 System Prompt
+        val line = provinceScoreRepository.getScores(ctx.province)
+            ?.lineFor(ctx.selectedSubjects.firstOrNull())
+        ctx.copy(provinceScore = line)
     }
 
     private fun buildUserContext(
@@ -465,6 +482,14 @@ class AiViewModel @Inject constructor(
             appendLine("- 目标专业：${ctx.targetMajor ?: "未设定"}")
             append("- 目标分数：${ctx.targetScore?.toString() ?: "未设定"}")
         }
+        val scoreSection = ctx.provinceScore?.let { line ->
+            val subjectLabel = ctx.selectedSubjects.firstOrNull()?.let { "$it 类" }.orEmpty()
+            buildString {
+                appendLine("## 本省分数线")
+                append("${ctx.province}$subjectLabel：本科线 ${line.benke ?: "未知"}")
+                if (line.tezhao != null) append("、特招线 ${line.tezhao}")
+            }
+        }.orEmpty()
         val examSection = ctx.latestExam?.let { exam ->
             buildString {
                 appendLine("## 最近一次考试")
@@ -499,6 +524,8 @@ class AiViewModel @Inject constructor(
 
         ## 用户画像（你必须牢记，不要反问用户这些已知信息）
         $profile
+
+        $scoreSection
 
         $examSection
 

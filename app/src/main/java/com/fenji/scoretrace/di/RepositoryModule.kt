@@ -7,7 +7,9 @@ import com.fenji.scoretrace.data.repository.DefaultMajorRepository
 import com.fenji.scoretrace.data.repository.DefaultNetworkRepository
 import com.fenji.scoretrace.data.repository.DefaultNotificationRepository
 import com.fenji.scoretrace.data.repository.DefaultSchoolRepository
+import com.fenji.scoretrace.data.repository.DefaultSchoolAdmissionRepository
 import com.fenji.scoretrace.data.repository.DefaultScoreRecordRepository
+import com.fenji.scoretrace.data.repository.DefaultProvinceScoreRepository
 import com.fenji.scoretrace.data.repository.DefaultStudySessionRepository
 import com.fenji.scoretrace.data.repository.DefaultStudyTaskRepository
 import com.fenji.scoretrace.data.repository.DefaultSubjectRepository
@@ -19,7 +21,9 @@ import com.fenji.scoretrace.data.repository.MajorRepository
 import com.fenji.scoretrace.data.repository.NetworkRepository
 import com.fenji.scoretrace.data.repository.NotificationRepository
 import com.fenji.scoretrace.data.repository.SchoolRepository
+import com.fenji.scoretrace.data.repository.SchoolAdmissionRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
+import com.fenji.scoretrace.data.repository.ProvinceScoreRepository
 import com.fenji.scoretrace.data.repository.StudySessionRepository
 import com.fenji.scoretrace.data.repository.StudyTaskRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
@@ -68,4 +72,10 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindGlmVisionRepository(impl: DefaultGlmVisionRepository): GlmVisionRepository
+
+    @Binds
+    abstract fun bindProvinceScoreRepository(impl: DefaultProvinceScoreRepository): ProvinceScoreRepository
+
+    @Binds
+    abstract fun bindSchoolAdmissionRepository(impl: DefaultSchoolAdmissionRepository): SchoolAdmissionRepository
 }
