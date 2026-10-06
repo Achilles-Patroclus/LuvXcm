@@ -13,10 +13,12 @@ import com.fenji.scoretrace.data.repository.StudySessionRepository
 import com.fenji.scoretrace.data.repository.StudyTaskRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.data.repository.TargetSchoolRepository
+import com.fenji.scoretrace.util.AppToastType
 import com.fenji.scoretrace.util.AvatarStore
 import com.fenji.scoretrace.util.DateUtils
 import com.fenji.scoretrace.util.LocationHelper
 import com.fenji.scoretrace.util.ScoreExporter
+import com.fenji.scoretrace.util.ToastMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -85,8 +87,8 @@ class MineViewModel @Inject constructor(
     private val _provinceStatus = MutableStateFlow(ProvinceStatus.Success)
     val provinceStatus: StateFlow<ProvinceStatus> = _provinceStatus.asStateFlow()
 
-    private val _toast = MutableSharedFlow<String>(extraBufferCapacity = 2)
-    val toast: SharedFlow<String> = _toast.asSharedFlow()
+    private val _toast = MutableSharedFlow<ToastMessage>(extraBufferCapacity = 2)
+    val toast: SharedFlow<ToastMessage> = _toast.asSharedFlow()
 
     val uiState: StateFlow<MineUiState> = combine(
         userPreferences.themeMode,
@@ -162,17 +164,17 @@ class MineViewModel @Inject constructor(
                 userPreferences.setProvince(province)
                 userPreferences.setProvinceLocated(true)
                 _provinceStatus.value = ProvinceStatus.Success
-                _toast.emit("已更新为 $province")
+                _toast.emit(ToastMessage("已更新为 $province", AppToastType.Success))
             } else {
                 _provinceStatus.value = ProvinceStatus.Failed
-                _toast.emit("定位失败，请检查定位权限")
+                _toast.emit(ToastMessage("定位失败，请检查定位权限", AppToastType.Error))
             }
         }
     }
 
     fun onProvincePermissionDenied() {
         _provinceStatus.value = ProvinceStatus.PermissionDenied
-        viewModelScope.launch { _toast.emit("定位权限被拒，无法获取省份") }
+        viewModelScope.launch { _toast.emit(ToastMessage("定位权限被拒，无法获取省份", AppToastType.Warning)) }
     }
 
     /** 保存昵称；空白输入回落到默认昵称。 */
@@ -186,9 +188,9 @@ class MineViewModel @Inject constructor(
             val path = AvatarStore.save(appContext, uri)
             if (path != null) {
                 userPreferences.setAvatarPath(path)
-                _toast.emit("头像已更新")
+                _toast.emit(ToastMessage("头像已更新", AppToastType.Success))
             } else {
-                _toast.emit("头像保存失败")
+                _toast.emit(ToastMessage("头像保存失败", AppToastType.Error))
             }
         }
     }
@@ -198,15 +200,15 @@ class MineViewModel @Inject constructor(
         viewModelScope.launch {
             val records = scoreRecordRepository.observeAll().first()
             if (records.isEmpty()) {
-                _toast.emit("暂无可导出的成绩")
+                _toast.emit(ToastMessage("暂无可导出的成绩", AppToastType.Warning))
                 return@launch
             }
             val subjectNames = subjectRepository.observeSubjects().first().associate { it.id to it.name }
             try {
                 val count = ScoreExporter.export(appContext, records, subjectNames, format)
-                _toast.emit("已导出到下载目录，共 $count 条记录")
+                _toast.emit(ToastMessage("已导出到下载目录，共 $count 条记录", AppToastType.Success))
             } catch (t: Exception) {
-                _toast.emit("导出失败：${t.message ?: "未知错误"}")
+                _toast.emit(ToastMessage("导出失败：${t.message ?: "未知错误"}", AppToastType.Error))
             }
         }
     }
@@ -222,7 +224,7 @@ class MineViewModel @Inject constructor(
             studySessionRepository.clearAll()
             conversationRepository.clearAll()
             userPreferences.clearAllKeepLocation()
-            _toast.emit("已清除全部数据")
+            _toast.emit(ToastMessage("已清除全部数据", AppToastType.Success))
         }
     }
 

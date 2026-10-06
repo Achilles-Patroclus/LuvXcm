@@ -86,7 +86,7 @@ fun MineScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.toast.collect { AppToast.success(it) }
+        viewModel.toast.collect { AppToast.show(it) }
     }
 
     Surface(

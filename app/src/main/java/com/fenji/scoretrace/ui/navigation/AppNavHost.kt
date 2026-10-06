@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -377,18 +378,21 @@ private fun tabEnter(): EnterTransition = fadeIn(animationSpec = tween(200))
 /** Tab 退出：淡出 200ms。 */
 private fun tabExit(): ExitTransition = fadeOut(animationSpec = tween(200))
 
-/** 全局 Snackbar：深灰底、白字、16dp 圆角，按 ✓ / ✕ 前缀显示成功/错误图标。 */
+/** 全局 Snackbar：深灰底、白字、16dp 圆角，按前置类型标记显示对应图标与配色（✓ / ✕ / ⚠ / ℹ）。 */
 @Composable
 private fun AppSnackbar(data: SnackbarData) {
     val message = data.visuals.message
     val (icon, tint) = when {
         message.startsWith(AppToast.SUCCESS_PREFIX) -> Icons.Rounded.CheckCircle to Color(0xFF10B981)
         message.startsWith(AppToast.ERROR_PREFIX) -> Icons.Rounded.Close to Color(0xFFEF4444)
-        else -> Icons.Rounded.Info to Color(0xFF36D1DC)
+        message.startsWith(AppToast.WARNING_PREFIX) -> Icons.Rounded.Warning to Color(0xFFF59E0B)
+        else -> Icons.Rounded.Info to Color(0xFF3B82F6)
     }
     val text = message
         .removePrefix("${AppToast.SUCCESS_PREFIX} ")
         .removePrefix("${AppToast.ERROR_PREFIX} ")
+        .removePrefix("${AppToast.WARNING_PREFIX} ")
+        .removePrefix("${AppToast.INFO_PREFIX} ")
 
     Snackbar(
         modifier = Modifier.padding(16.dp),

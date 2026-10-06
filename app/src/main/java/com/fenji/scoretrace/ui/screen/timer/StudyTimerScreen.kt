@@ -67,7 +67,7 @@ fun StudyTimerScreen(
     var showCustomDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.toast.collect { AppToast.success(it) }
+        viewModel.toast.collect { AppToast.show(it) }
     }
 
     Surface(

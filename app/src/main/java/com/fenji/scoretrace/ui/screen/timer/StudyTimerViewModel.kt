@@ -3,7 +3,9 @@ package com.fenji.scoretrace.ui.screen.timer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.repository.StudySessionRepository
+import com.fenji.scoretrace.util.AppToastType
 import com.fenji.scoretrace.util.DateUtils
+import com.fenji.scoretrace.util.ToastMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,8 +49,8 @@ class StudyTimerViewModel @Inject constructor(
     private val _state = MutableStateFlow(TimerUiState())
     val state: StateFlow<TimerUiState> = _state.asStateFlow()
 
-    private val _toast = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val toast: SharedFlow<String> = _toast.asSharedFlow()
+    private val _toast = MutableSharedFlow<ToastMessage>(extraBufferCapacity = 4)
+    val toast: SharedFlow<ToastMessage> = _toast.asSharedFlow()
 
     private var tickerJob: Job? = null
 
@@ -117,7 +119,7 @@ class StudyTimerViewModel @Inject constructor(
         val type = if (snapshot.mode == TimerMode.Countdown) TYPE_COUNTDOWN else TYPE_STOPWATCH
         viewModelScope.launch {
             studySessionRepository.addSession(sessionStartedAt, seconds, type)
-            _toast.emit("已保存本次专注 ${formatFocus(seconds)}")
+            _toast.emit(ToastMessage("已保存本次专注 ${formatFocus(seconds)}", AppToastType.Success))
         }
     }
 
@@ -133,7 +135,7 @@ class StudyTimerViewModel @Inject constructor(
             _state.update { it.copy(isRunning = false, elapsedSeconds = 0) }
             viewModelScope.launch {
                 studySessionRepository.addSession(started, target, TYPE_COUNTDOWN)
-                _toast.emit("专注完成！已记录 ${formatFocus(target)}")
+                _toast.emit(ToastMessage("专注完成！已记录 ${formatFocus(target)}", AppToastType.Success))
             }
         } else {
             _state.update { it.copy(elapsedSeconds = next) }
