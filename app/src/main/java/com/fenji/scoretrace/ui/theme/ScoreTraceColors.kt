@@ -93,6 +93,19 @@ object ScoreTraceColors {
     val SchoolPurple = Color(0xFF7C5CFC)
     val SchoolPurpleLight = Color(0xFF9B7FFF)
 
+    /**
+     * 办学层次标签强调色：本科用蓝、专科用灰蓝，与 985/211/双一流 的紫色统一风格。
+     * 深色主题下取更亮的一档，保证小字号文字对比度。
+     */
+    val TagUndergraduate: Color
+        @Composable get() = if (LocalAppDarkTheme.current) Color(0xFF60A5FA) else Color(0xFF2563EB)
+    val TagVocational: Color
+        @Composable get() = if (LocalAppDarkTheme.current) Color(0xFF94A3B8) else Color(0xFF64748B)
+
+    /** 985 / 211 / 双一流 标签强调色（紫）；比共享的 SchoolPurple 更深（浅）/更亮（深）一档，保证小字号对比度。 */
+    val TagElite: Color
+        @Composable get() = if (LocalAppDarkTheme.current) Color(0xFFA78BFA) else Color(0xFF6D4AE6)
+
     /** 文字层级（主题感知） */
     val TextPrimaryLight: Color
         @Composable get() = MaterialTheme.colorScheme.onSurface

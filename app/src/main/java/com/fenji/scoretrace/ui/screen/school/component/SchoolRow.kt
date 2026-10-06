@@ -38,7 +38,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import com.fenji.scoretrace.data.model.SchoolInfo
+import com.fenji.scoretrace.ui.component.SchoolTagChip
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.pickerSchoolTags
 
 /**
  * 院校行（卡片内的头部内容，不含卡片边框/背景）。
@@ -93,7 +95,7 @@ fun SchoolRow(
             if (isSelected && school.tags.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    displayTags(school.tags).forEach { TagChip(it) }
+                    pickerSchoolTags(school.tags).forEach { SchoolTagChip(it) }
                 }
             }
         }
@@ -101,7 +103,7 @@ fun SchoolRow(
         // 未选中态：标签靠右 + 空心单选圈
         if (!isSelected && school.tags.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                displayTags(school.tags).forEach { TagChip(it) }
+                pickerSchoolTags(school.tags).forEach { SchoolTagChip(it) }
             }
             Spacer(modifier = Modifier.width(10.dp))
         }
@@ -165,30 +167,4 @@ private fun SchoolLogo(school: SchoolInfo, isSelected: Boolean) {
     }
 }
 
-/** 标签重要性排序，并按「最多 4 项、超出以 +N 收尾」生成展示列表。 */
-private fun displayTags(tags: List<String>): List<String> {
-    val order = listOf("C9", "985", "211", "双一流", "国防七子")
-    val sorted = tags.distinct().sortedBy { tag ->
-        order.indexOf(tag).let { if (it < 0) order.size else it }
-    }
-    return if (sorted.size <= 4) sorted else sorted.take(3) + "+${sorted.size - 3}"
-}
 
-/** 院校标签（985 / 211 / 双一流 / C9），淡紫底、紫字。 */
-@Composable
-private fun TagChip(text: String) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.12f))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    ) {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            lineHeight = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = ScoreTraceColors.SchoolPurple,
-        )
-    }
-}

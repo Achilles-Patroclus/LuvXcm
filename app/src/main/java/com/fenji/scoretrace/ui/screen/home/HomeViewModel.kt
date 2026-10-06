@@ -20,6 +20,7 @@ import com.fenji.scoretrace.ui.component.SubjectScore
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.DateUtils
 import com.fenji.scoretrace.util.aggregateExams
+import com.fenji.scoretrace.util.homeSchoolTags
 import com.fenji.scoretrace.util.rankRecordFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -51,7 +52,7 @@ data class HomeUiState(
     val targetSchool: TargetSchool? = null,
     /** 目标院校校徽地址（按校名从 schools.json 反查）；未知院校为 null，UI 回退首字 */
     val targetSchoolLogoUrl: String? = null,
-    /** 目标院校层次标签（C9/985/211/双一流…）；未知为空列表，UI 不渲染标签 */
+    /** 目标院校层次标签（985/211/双一流 或 本科/专科）；未知为空列表，UI 不渲染标签 */
     val targetSchoolTags: List<String> = emptyList(),
     /** 最近一次考试总分；null 表示暂无成绩 */
     val latestTotalScore: Int? = null,
@@ -106,7 +107,7 @@ class HomeViewModel @Inject constructor(
             autoPlayMusic = autoPlayMusic,
             targetSchool = targetSchool,
             targetSchoolLogoUrl = targetSchoolInfo?.logoUrl,
-            targetSchoolTags = targetSchoolInfo?.tags.orEmpty(),
+            targetSchoolTags = targetSchoolInfo?.let { homeSchoolTags(it.level, it.tags) }.orEmpty(),
             latestTotalScore = summary.latestTotal,
             latestRankText = summary.rankText,
             latestGradeRankText = summary.gradeRankText,

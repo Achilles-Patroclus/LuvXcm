@@ -40,9 +40,6 @@ import com.fenji.scoretrace.data.local.entity.TargetSchool
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import java.util.Locale
 
-/** 层次标签展示优先级：联盟/工程标签优先于泛双一流 */
-private val TAG_PRIORITY = listOf("C9", "985", "211", "双一流")
-
 /**
  * 目标院校卡（设计稿版）。
  * 顶部：紫色渐变校徽方块 + 学校名 + 层次标签 + 专业 + 右箭头
@@ -57,7 +54,7 @@ private val TAG_PRIORITY = listOf("C9", "985", "211", "双一流")
 fun TargetSchoolCardNew(
     targetSchool: TargetSchool?,
     logoUrl: String?,
-    /** 层次标签（C9/985/211/双一流…）；空列表时不渲染标签胶囊 */
+    /** 层次标签（985/211/双一流 或 本科/专科）；空列表时不渲染标签胶囊 */
     tags: List<String> = emptyList(),
     /** 当前分：取最近一次考试总分，随新成绩导入实时更新；无成绩时回退到录入时的快照 */
     currentScore: Int,
@@ -135,31 +132,17 @@ private fun TargetSchoolContent(
         SchoolLogoBlock(schoolName = targetSchool.schoolName, logoUrl = logoUrl)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = targetSchool.schoolName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    lineHeight = 20.sp,
-                    color = ScoreTraceColors.TextPrimaryLight,
-                )
-                val displayTag = tags.firstOrNull { it in TAG_PRIORITY } ?: tags.firstOrNull()
-                if (displayTag != null) {
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(ScoreTraceColors.SchoolPurple.copy(alpha = 0.12f))
-                            .padding(horizontal = 3.dp, vertical = 1.dp),
-                    ) {
-                        Text(
-                            text = displayTag,
-                            fontSize = 10.sp,
-                            lineHeight = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = ScoreTraceColors.SchoolPurple,
-                        )
-                    }
+            Text(
+                text = targetSchool.schoolName,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                lineHeight = 20.sp,
+                color = ScoreTraceColors.TextPrimaryLight,
+            )
+            if (tags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    tags.forEach { SchoolTagChip(it) }
                 }
             }
             Text(
