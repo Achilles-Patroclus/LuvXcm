@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="white">#FFFFFFFF</color>
+    <!-- 启动窗口背景（Pre-Compose）：浅色白；深色由 values-night 覆盖为 #0F172A，避免冷启动白屏闪烁 -->
+    <color name="window_background">#FFFFFFFF</color>
 </resources>

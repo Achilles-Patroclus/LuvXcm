@@ -23,15 +23,15 @@ object ScoreTraceColors {
     val AccentCyanOnLight = Color(0xFF00707C)
 
     // ── 页面底渐变（比卡片再深一档，让卡片「浮」起来）
-    val PageGradientDark = listOf(Color(0xFF12121C), Color(0xFF1D1D2B))
+    val PageGradientDark = listOf(Color(0xFF0F172A), Color(0xFF0B1220))
     val PageGradientLight = listOf(Color(0xFFF6F8FC), Color(0xFFE9EDF5))
 
     // ── 卡片面渐变（深色直接沿用音乐卡既有值）
-    val CardGradientDark = listOf(Color(0xFF1E1E2E), Color(0xFF2D2D44))
+    val CardGradientDark = listOf(Color(0xFF1E293B), Color(0xFF243449))
     val CardGradientLight = listOf(Color(0xFFFFFFFF), Color(0xFFF2F5FB))
 
     // 倒计时卡片：更亮的蓝紫过渡，呼应封面渐变的冷暖对比
-    val HighlightGradientDark = listOf(Color(0xFF2A2A46), Color(0xFF1B1B2A))
+    val HighlightGradientDark = listOf(Color(0xFF243449), Color(0xFF172033))
 
     // ── 封面 / 手绘插画渐变（沿用既有封面）
     val CoverGradient = listOf(AccentBlue, AccentCyan)
