@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,13 +74,19 @@ fun AboutScreen(onBack: () -> Unit) {
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Image(
-                    painter = painterResource(R.mipmap.ic_launcher_round),
-                    contentDescription = "ScoreTrace",
+                Box(
                     modifier = Modifier
                         .size(88.dp)
-                        .clip(RoundedCornerShape(22.dp)),
-                )
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(colorResource(R.color.ic_launcher_background)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = "ScoreTrace",
+                        modifier = Modifier.size(72.dp),
+                    )
+                }
                 Spacer(modifier = Modifier.height(14.dp))
                 Text("ScoreTrace", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -259,7 +266,11 @@ private val OPEN_SOURCE_LIBRARIES = listOf(
 @Composable
 private fun OpenSourceLicensesSheet(onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

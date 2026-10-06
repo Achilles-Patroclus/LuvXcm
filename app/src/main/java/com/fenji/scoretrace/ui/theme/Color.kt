@@ -27,6 +27,11 @@ val OnErrorLight = Color(0xFFFFFFFF)
 // 浅色下的分层表面（卡片之外仍有层级）
 val SurfaceContainerLight = Color(0xFFFFFFFF)
 val SurfaceContainerHighLight = Color(0xFFF8FAFC)
+val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFF8FAFC)
+val SurfaceContainerHighestLight = Color(0xFFF1F5F9)
+val SurfaceDimLight = Color(0xFFE2E8F0)
+val SurfaceBrightLight = Color(0xFFFFFFFF)
 
 // 深色
 val PrimaryDark = Color(0xFFA9C7FF)
@@ -54,3 +59,8 @@ val OnErrorDark = Color(0xFF690005)
 // 深色下的分层表面
 val SurfaceContainerDark = Color(0xFF24242F)
 val SurfaceContainerHighDark = Color(0xFF2C2C3A)
+val SurfaceContainerLowestDark = Color(0xFF0E0E14)
+val SurfaceContainerLowDark = Color(0xFF1F1F29)
+val SurfaceContainerHighestDark = Color(0xFF34343F)
+val SurfaceDimDark = Color(0xFF0E0E14)
+val SurfaceBrightDark = Color(0xFF3A3A48)
