@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,7 +23,9 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 @Composable
 fun HistorySection(
     groups: List<HistoryGroup>,
-    onDelete: (ExamHistoryItem) -> Unit,
+    /** 当前待二次确认删除的考试名；对应卡片划出后不复位 */
+    pendingDeleteName: String?,
+    onDeleteRequest: (ExamHistoryItem) -> Unit,
     onItemClick: (ExamHistoryItem) -> Unit,
     onGuideClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -64,12 +67,15 @@ fun HistorySection(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 group.items.forEach { item ->
-                    HistoryRecordCard(
-                        item = item,
-                        onDelete = { onDelete(item) },
-                        onClick = { onItemClick(item) },
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    )
+                    key(item.examName) {
+                        HistoryRecordCard(
+                            item = item,
+                            pendingDelete = pendingDeleteName == item.examName,
+                            onDeleteRequest = { onDeleteRequest(item) },
+                            onClick = { onItemClick(item) },
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        )
+                    }
                 }
             }
 

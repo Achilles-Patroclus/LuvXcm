@@ -4,11 +4,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.UserPreferences
+import com.fenji.scoretrace.data.local.entity.ExamRecord
+import com.fenji.scoretrace.data.local.entity.ScoreRecord
+import com.fenji.scoretrace.data.local.entity.Subject
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
 import com.fenji.scoretrace.data.repository.ScoreRecordRepository
 import com.fenji.scoretrace.data.repository.SubjectRepository
+import com.fenji.scoretrace.data.repository.TargetSchoolRepository
 import com.fenji.scoretrace.ui.component.SubjectScore
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.AppLogger
+import com.fenji.scoretrace.util.AppToast
 import com.fenji.scoretrace.util.Constants
 import com.fenji.scoretrace.util.DateUtils
 import com.fenji.scoretrace.util.aggregateExams
@@ -89,8 +95,8 @@ data class ScorePageUiState(
     val classRank: Int? = null,
     val gradeRank: Int? = null,
     val totalRate: Float = 0f,
-    /** 目标分：暂无数据源（待接入目标院校换算），暂保留占位值 */
-    val targetScore: Int = 680,
+    /** 目标分：与首页同源（目标院校目标分）；null 表示未设定 */
+    val targetScore: Int? = null,
     val trendRange: TrendRange = TrendRange.Recent6,
     val trendPoints: List<TrendPoint> = emptyList(),
     val analysisTab: AnalysisTab = AnalysisTab.Radar,
@@ -107,11 +113,21 @@ private data class AnalysisControls(
     val subject: String,
 )
 
+/** 成绩数据源（不含目标院校）：与目标院校流一起 combine，避免超过 5 元组合上限 */
+private data class CoreInputs(
+    val records: List<ScoreRecord>,
+    val subjects: List<Subject>,
+    val exams: List<ExamRecord>,
+    val selectedSubjects: List<String>,
+    val controls: AnalysisControls,
+)
+
 @HiltViewModel
 class ScoreViewModelNew @Inject constructor(
     private val scoreRecordRepository: ScoreRecordRepository,
     private val subjectRepository: SubjectRepository,
     private val examRecordRepository: ExamRecordRepository,
+    private val targetSchoolRepository: TargetSchoolRepository,
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
@@ -124,12 +140,22 @@ class ScoreViewModelNew @Inject constructor(
     }
 
     val uiState: StateFlow<ScorePageUiState> = combine(
-        scoreRecordRepository.observeRecords(null),
-        subjectRepository.observeSubjects(),
-        examRecordRepository.observeAll(),
-        userPreferences.selectedSubjects,
-        _controls,
-    ) { records, subjects, exams, selectedSubjects, controls ->
+        targetSchoolRepository.observeLatest(),
+        combine(
+            scoreRecordRepository.observeRecords(null),
+            subjectRepository.observeSubjects(),
+            examRecordRepository.observeAll(),
+            userPreferences.selectedSubjects,
+            _controls,
+        ) { records, subjects, exams, selectedSubjects, controls ->
+            CoreInputs(records, subjects, exams, selectedSubjects, controls)
+        },
+    ) { targetSchool, core ->
+        val records = core.records
+        val subjects = core.subjects
+        val exams = core.exams
+        val selectedSubjects = core.selectedSubjects
+        val controls = core.controls
         val aggregated = aggregateExams(records)
         val idByName = subjects.associate { it.name to it.id }
         val nameToColor = subjects.associate { it.name to Color(it.color) }
@@ -202,6 +228,7 @@ class ScoreViewModelNew @Inject constructor(
             totalRate = latest?.let { exam ->
                 if (exam.fullScore > 0) exam.totalScore.toFloat() / exam.fullScore else 0f
             } ?: 0f,
+            targetScore = targetSchool?.targetScore,
             trendRange = controls.range,
             trendPoints = trendPoints,
             analysisTab = controls.tab,
@@ -228,12 +255,20 @@ class ScoreViewModelNew @Inject constructor(
         _selectedSubject.value = subject
     }
 
-    /** 删除一次考试：删掉该考试名下的全部单科记录（排名行无删除接口，保留不影响展示）。 */
-    fun deleteExam(examName: String) {
+    /**
+     * 删除一次考试：按 [examId]（由考试名派生）定位考试名，再删掉该考试名下的全部单科记录。
+     * 传 id 而非原始名字，从根本上避免空值/重名造成的越界删除；删除后提示剩余考试数。
+     */
+    fun deleteExam(examId: Long) {
         viewModelScope.launch {
-            scoreRecordRepository.observeRecords(null).first()
-                .filter { it.examName == examName }
-                .forEach { scoreRecordRepository.deleteRecord(it) }
+            val examName = aggregateExams(scoreRecordRepository.observeRecords(null).first())
+                .firstOrNull { examNameToId(it.name) == examId }
+                ?.name
+                ?: return@launch
+            scoreRecordRepository.deleteExamByName(examName)
+            val remaining = aggregateExams(scoreRecordRepository.observeRecords(null).first()).size
+            AppLogger.i("ScoreDelete", "examId=$examId exam=$examName remaining=$remaining")
+            AppToast.success("已删除 1 条，剩 $remaining 条记录")
         }
     }
 }

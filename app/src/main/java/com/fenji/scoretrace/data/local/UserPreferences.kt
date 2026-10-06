@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fenji.scoretrace.util.AppLogger
 import com.fenji.scoretrace.util.DateUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -68,6 +69,7 @@ class UserPreferences @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[KEY_SELECTED_SUBJECTS] = subjects.joinToString(SUBJECT_SEPARATOR)
         }
+        AppLogger.i("SubjectChange", subjects.joinToString(SUBJECT_SEPARATOR))
     }
 
     /**
@@ -85,6 +87,7 @@ class UserPreferences @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[KEY_PROVINCE] = value
         }
+        AppLogger.i("ProvinceChange", value)
     }
 
     /**

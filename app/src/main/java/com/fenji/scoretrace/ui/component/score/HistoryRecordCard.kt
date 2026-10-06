@@ -21,6 +21,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,17 +35,34 @@ import com.fenji.scoretrace.ui.screen.score.ExamHistoryItem
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import java.time.format.DateTimeFormatter
 
-/** 单条考试历史卡片，支持左滑露出删除按钮。 */
+/** 单条考试历史卡片，支持左滑露出删除按钮。左滑松手时只发起删除请求（不直接删），交由外层弹二次确认。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryRecordCard(
     item: ExamHistoryItem,
-    onDelete: () -> Unit,
+    /** 该卡片是否正处于「待二次确认」状态，用于取消确认后复位滑动 */
+    pendingDelete: Boolean,
+    onDeleteRequest: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val dismissState = rememberSwipeToDismissBoxState()
+
+    // 向左划出即发起删除请求（不直接删），由外层弹二次确认
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            onDeleteRequest()
+        }
+    }
+    // 取消确认后把卡片复位，避免停留在已划出状态
+    LaunchedEffect(pendingDelete) {
+        if (!pendingDelete && dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            dismissState.reset()
+        }
+    }
+
     SwipeToDismissBox(
-        state = rememberSwipeToDismissBoxState(),
+        state = dismissState,
         backgroundContent = {
             Box(
                 modifier = Modifier
@@ -67,9 +85,6 @@ fun HistoryRecordCard(
                     Text("删除", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 }
             }
-        },
-        onDismiss = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) onDelete()
         },
         modifier = modifier,
     ) {

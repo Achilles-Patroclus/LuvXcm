@@ -3,6 +3,7 @@ package com.fenji.scoretrace.ui.component.ai
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -48,11 +49,11 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
 ) {
     val blocks = remember(markdown) { parseMarkdown(markdown) }
-    Column(modifier = modifier) {
-        blocks.forEachIndexed { index, block ->
-            if (index > 0) Spacer(modifier = Modifier.height(8.dp))
-            MarkdownBlock(block)
-        }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        blocks.forEach { block -> MarkdownBlock(block) }
     }
 }
 
@@ -384,9 +385,10 @@ private fun CodeBlock(code: String) {
 private fun MarkdownTable(block: MdBlock.Table) {
     val colCount = maxOf(block.header.size, block.rows.maxOfOrNull { it.size } ?: 0).coerceAtLeast(1)
     val border = ScoreTraceColors.CardBorderLight
+    // 表格按容器宽度均分列宽。不可套 horizontalScroll：横向无界约束会让 weight 列宽塔陷成一条竖线。
     Box(
         modifier = Modifier
-            .horizontalScroll(rememberScrollState())
+            .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, border, RoundedCornerShape(8.dp)),
     ) {

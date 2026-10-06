@@ -30,7 +30,7 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 @Composable
 fun TotalTrendCard(
     points: List<TrendPoint>,
-    targetScore: Int,
+    targetScore: Int?,
     selectedRange: TrendRange,
     onRangeChange: (TrendRange) -> Unit,
     modifier: Modifier = Modifier,
@@ -87,7 +87,6 @@ fun TotalTrendCard(
         Spacer(modifier = Modifier.height(8.dp))
 
         val totalGain = if (points.size >= 2) points.last().score - points.first().score else 0
-        val gapToTarget = if (points.isEmpty()) 0 else (targetScore - points.last().score).coerceAtLeast(0)
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "${points.size}次累计 ${if (totalGain >= 0) "+" else ""}$totalGain 分",
@@ -96,12 +95,22 @@ fun TotalTrendCard(
                 color = ScoreTraceColors.SuccessGreen,
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "距目标还差 $gapToTarget 分",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = ScoreTraceColors.WarningOrange,
-            )
+            if (targetScore != null && points.isNotEmpty()) {
+                val gapToTarget = (targetScore - points.last().score).coerceAtLeast(0)
+                Text(
+                    text = "距目标还差 $gapToTarget 分",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = ScoreTraceColors.WarningOrange,
+                )
+            } else {
+                Text(
+                    text = "未设定目标",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = ScoreTraceColors.TextTertiaryLight,
+                )
+            }
         }
     }
 }

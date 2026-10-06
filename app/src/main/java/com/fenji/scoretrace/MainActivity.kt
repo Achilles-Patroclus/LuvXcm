@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.fenji.scoretrace.data.local.UserPreferences
 import com.fenji.scoretrace.ui.navigation.AppNavHost
 import com.fenji.scoretrace.ui.theme.ScoreTraceTheme
+import com.fenji.scoretrace.util.AppLogger
 import com.fenji.scoretrace.util.LocationHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        AppLogger.i("AppStart", "MainActivity onCreate")
         setContent {
             ScoreTraceTheme {
                 Surface(

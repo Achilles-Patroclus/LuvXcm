@@ -8,6 +8,7 @@ import com.fenji.scoretrace.data.remote.glm.dto.GlmContent
 import com.fenji.scoretrace.data.remote.glm.dto.GlmImageUrl
 import com.fenji.scoretrace.data.remote.glm.dto.GlmMessage
 import com.fenji.scoretrace.data.remote.glm.dto.ScoreSheetType
+import com.fenji.scoretrace.util.AppLogger
 import com.google.gson.Gson
 import com.google.gson.Strictness
 import com.google.gson.annotations.SerializedName
@@ -61,10 +62,17 @@ class DefaultGlmVisionRepository @Inject constructor(
         onStage: (VisionStage) -> Unit,
     ): Result<VisionResult> = when (type) {
         ScoreSheetType.PERSONAL -> {
+            AppLogger.i("GlmVision", "start type=PERSONAL")
             onStage(VisionStage.EXTRACTING)
             extractPersonalScore(imageDataUrl).fold(
-                onSuccess = { Result.success(VisionResult.Personal(it)) },
-                onFailure = { Result.success(VisionResult.Error(codeOf(it), messageOf(it))) },
+                onSuccess = {
+                    AppLogger.i("GlmVision", "success type=PERSONAL subjects=${it.scores.size}")
+                    Result.success(VisionResult.Personal(it))
+                },
+                onFailure = {
+                    AppLogger.e("GlmVision", "fail type=PERSONAL code=${codeOf(it)}", it)
+                    Result.success(VisionResult.Error(codeOf(it), messageOf(it)))
+                },
             )
         }
 
@@ -72,10 +80,17 @@ class DefaultGlmVisionRepository @Inject constructor(
             if (name.isNullOrBlank()) {
                 Result.success(VisionResult.ClassRanking("检测到班级排名表，请输入你的姓名"))
             } else {
+                AppLogger.i("GlmVision", "start type=CLASS_RANKING name=$name")
                 onStage(VisionStage.SEARCHING)
                 extractClassRankingRow(imageDataUrl, name).fold(
-                    onSuccess = { Result.success(VisionResult.Personal(it)) },
-                    onFailure = { Result.success(VisionResult.Error(codeOf(it), messageOf(it))) },
+                    onSuccess = {
+                        AppLogger.i("GlmVision", "success type=CLASS_RANKING subjects=${it.scores.size}")
+                        Result.success(VisionResult.Personal(it))
+                    },
+                    onFailure = {
+                        AppLogger.e("GlmVision", "fail type=CLASS_RANKING code=${codeOf(it)}", it)
+                        Result.success(VisionResult.Error(codeOf(it), messageOf(it)))
+                    },
                 )
             }
         }

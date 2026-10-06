@@ -4,6 +4,7 @@ import com.fenji.scoretrace.data.remote.deepseek.DeepSeekApiService
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatChunk
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatRequest
 import com.fenji.scoretrace.data.remote.deepseek.dto.ChatResponse
+import com.fenji.scoretrace.util.AppLogger
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +52,7 @@ class DeepSeekRepository @Inject constructor(
         messages: List<ChatRequest.Message>,
         systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     ): Flow<String> = flow {
+        AppLogger.i("AiChat", "start messages=${messages.size}")
         val requestBody = gson.toJson(
             ChatRequest(messages = withSystemPrompt(messages, systemPrompt), stream = true),
         )
@@ -64,6 +66,7 @@ class DeepSeekRepository @Inject constructor(
 
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                AppLogger.w("AiChat", "http ${response.code} ${response.message}")
                 emit("[错误] HTTP ${response.code}: ${response.message}")
                 return@use
             }
@@ -79,6 +82,7 @@ class DeepSeekRepository @Inject constructor(
 
                     val data = currentLine.removePrefix(SSE_DATA_PREFIX).trim()
                     if (data == SSE_DONE) {
+                        AppLogger.i("AiChat", "done")
                         emit("")  // 结束标记
                         break
                     }

@@ -7,9 +7,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +44,8 @@ fun ScoreScreenNew(
     onOpenDetail: (Long) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 待确认删除的考试；非空时弹二次确认
+    var pendingDelete by remember { mutableStateOf<ExamHistoryItem?>(null) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -105,12 +113,34 @@ fun ScoreScreenNew(
 
                     HistorySection(
                         groups = state.historyGroups,
-                        onDelete = { viewModel.deleteExam(it.examName) },
+                        pendingDeleteName = pendingDelete?.examName,
+                        onDeleteRequest = { pendingDelete = it },
                         onItemClick = { onOpenDetail(it.id) },
                         onGuideClick = onOpenAi,
                     )
                 }
             }
         }
+    }
+
+    pendingDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除成绩") },
+            text = { Text("确定删除「${item.examName}」这次考试的全部成绩吗？该操作不可撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteExam(item.id)
+                        pendingDelete = null
+                    },
+                ) {
+                    Text("删除", color = ScoreTraceColors.ErrorRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+            },
+        )
     }
 }

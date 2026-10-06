@@ -27,6 +27,10 @@ interface ScoreRecordDao {
     @Delete
     suspend fun delete(record: ScoreRecord)
 
+    /** 删除某次考试的全部单科记录，返回删除条数。 */
+    @Query("DELETE FROM score_records WHERE examName = :examName")
+    suspend fun deleteByExamName(examName: String): Int
+
     @Query("DELETE FROM score_records")
     suspend fun clearAll()
 }

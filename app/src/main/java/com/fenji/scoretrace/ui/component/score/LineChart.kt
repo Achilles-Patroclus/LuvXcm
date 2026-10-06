@@ -22,14 +22,14 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
  * Canvas 折线图（不引入第三方图表库）。
  *
  * @param points 数据点（按时间正序）
- * @param targetScore 目标分数，画一条红色虚线
+ * @param targetScore 目标分数，非空时画一条红色虚线；为 null 表示未设定目标
  * @param yMin Y 轴最小值
  * @param yMax Y 轴最大值，[yMin, yMax] 之间四等分画网格线
  */
 @Composable
 fun LineChart(
     points: List<TrendPoint>,
-    targetScore: Int,
+    targetScore: Int?,
     yMin: Int = 400,
     yMax: Int = 700,
     modifier: Modifier = Modifier,
@@ -66,8 +66,8 @@ fun LineChart(
             drawText(layout, topLeft = Offset(8.dp.toPx(), y - layout.size.height / 2f))
         }
 
-        // 目标虚线
-        if (targetScore in yMin..yMax) {
+        // 目标虚线（未设定目标时不画）
+        if (targetScore != null && targetScore in yMin..yMax) {
             val targetY = yFor(targetScore)
             val dashWidth = 6.dp.toPx()
             val dashGap = 4.dp.toPx()
