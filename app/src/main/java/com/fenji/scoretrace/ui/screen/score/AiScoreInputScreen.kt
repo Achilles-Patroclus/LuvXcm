@@ -1,9 +1,18 @@
 package com.fenji.scoretrace.ui.screen.score
 
+import android.app.Activity
+import android.content.ClipData
+import android.content.Intent
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,29 +23,29 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,36 +55,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.data.remote.glm.dto.ScoreSheetType
+import com.fenji.scoretrace.ui.component.score.SaveBar
+import com.fenji.scoretrace.ui.component.score.ScoreEntryForm
+import com.fenji.scoretrace.ui.component.score.ScoreInputTopBar
+import com.fenji.scoretrace.ui.component.score.ScoreSectionCard
+import com.fenji.scoretrace.ui.component.score.scoreFormHasOverflow
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import com.fenji.scoretrace.util.AppToast
 import com.fenji.scoretrace.util.DateUtils
+import java.io.File
 import java.util.Date
 
-/** 需要逐科录入的六科与各自满分（云南 3+1+2：语数外 150，其余 100）。 */
-private val FORM_SUBJECTS = listOf(
-    "语文" to 150.0,
-    "数学" to 150.0,
-    "英语" to 150.0,
-    "物理" to 100.0,
-    "化学" to 100.0,
-    "生物" to 100.0,
-)
-
 /**
- * AI 录成绩页：手动录入考试名、日期、班级排名与各科分数，实时汇总总分并校验（分数不超过满分），
- * 保存后写入数据库并生成「新成绩已录入」通知。
+ * AI 录成绩页：顶部「上传成绩单」大按钮 → 拍照/相册 BottomSheet → AI 自动判断图片类型并识别 →
+ * 表单自动回填，用户核对后保存。
+ *
+ * 自动判断失败、结果不确定或图片内容审核（1301）拒绝时，降级弹出「请选择图片类型」让用户手选。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiScoreInputScreen(
     onBack: () -> Unit,
@@ -83,35 +93,53 @@ fun AiScoreInputScreen(
     autoPickImage: Boolean = false,
     viewModel: AiScoreInputViewModel = hiltViewModel(),
 ) {
-    val parseHint by viewModel.parseHint.collectAsStateWithLifecycle()
+    val formSubjects by viewModel.formSubjects.collectAsStateWithLifecycle()
     val parsedSheet by viewModel.parsedSheet.collectAsStateWithLifecycle()
     val loadingStage by viewModel.loadingStage.collectAsStateWithLifecycle()
+    val outcome by viewModel.recognizeOutcome.collectAsStateWithLifecycle()
     val pendingNameInput by viewModel.pendingNameInput.collectAsStateWithLifecycle()
     val subjectMismatch by viewModel.subjectMismatch.collectAsStateWithLifecycle()
     val reopenTypeSelector by viewModel.reopenTypeSelector.collectAsStateWithLifecycle()
+    val parseHint by viewModel.parseHint.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
     var pickedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showSourceSheet by rememberSaveable { mutableStateOf(false) }
     var showTypeDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedSheetType by remember { mutableStateOf<ScoreSheetType?>(null) }
-    val imagePicker = rememberLauncherForActivityResult(
+
+    val galleryPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
-        val type = selectedSheetType
-        if (uri != null && type != null) {
+        if (uri != null) {
             pickedImageUri = uri
-            viewModel.parseScoreImage(uri, type)
+            viewModel.onImagePicked(uri)
+        }
+    }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val uri = cameraUri
+        if (result.resultCode == Activity.RESULT_OK && uri != null) {
+            pickedImageUri = uri
+            viewModel.onImagePicked(uri)
         }
     }
 
-    // 内容审核（1301）失败 → 重新弹出类型选择
+    // 内容审核 / 自动判断失败 → 重新弹出类型选择（降级）
     LaunchedEffect(reopenTypeSelector) {
         if (reopenTypeSelector) {
             showTypeDialog = true
             viewModel.consumeReopenTypeSelector()
         }
     }
-    // 从 AI 助手「从相册选图」进入时，直接弹出图片类型选择
+    // 从 AI 助手「从相册选图」进入时，直接拉起相册
     LaunchedEffect(autoPickImage) {
-        if (autoPickImage) showTypeDialog = true
+        if (autoPickImage) {
+            galleryPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+            )
+        }
     }
     LaunchedEffect(parseHint) {
         parseHint?.let {
@@ -121,31 +149,25 @@ fun AiScoreInputScreen(
     }
 
     var examName by rememberSaveable { mutableStateOf("") }
-    var examDateText by rememberSaveable { mutableStateOf(DateUtils.formatDate(Date())) }
-    var classRankText by rememberSaveable { mutableStateOf("") }
-    val scoreTexts = remember { mutableStateListOf(*Array(FORM_SUBJECTS.size) { "" }) }
+    var examDateMillis by rememberSaveable { mutableStateOf(Date().time) }
+    var classRank by rememberSaveable { mutableStateOf("") }
+    var gradeRank by rememberSaveable { mutableStateOf("") }
+    val scoreTexts = remember { mutableStateMapOf<String, String>() }
 
-    val entries = FORM_SUBJECTS.mapIndexed { index, (name, fullScore) ->
-        ScoreEntry(name = name, score = scoreTexts[index].toDoubleOrNull() ?: 0.0, fullScore = fullScore)
-    }
-    val total = entries.sumOf { if (it.score > 0) it.score else 0.0 }
-    val hasOverflow = entries.any { it.score > it.fullScore }
-    val canSave = examName.isNotBlank() && !hasOverflow && entries.any { it.score > 0 }
-
-    // 识别成功：把结果回填到表单（只覆盖有值的字段）
+    // 识别成功：把结果回填到表单（只覆盖有值的字段，支持动态科目）
     LaunchedEffect(parsedSheet) {
         parsedSheet?.let { sheet ->
             if (sheet.examName.isNotBlank()) examName = sheet.examName
-            if (sheet.examDate.isNotBlank()) examDateText = sheet.examDate
-            sheet.classRank?.let { classRankText = it.toString() }
+            if (sheet.examDate.isNotBlank()) {
+                DateUtils.parseDate(sheet.examDate)?.let { examDateMillis = it.time }
+            }
+            sheet.classRank?.let { classRank = it.toString() }
+            sheet.gradeRank?.let { gradeRank = it.toString() }
             sheet.scores.forEach { subject ->
-                val index = FORM_SUBJECTS.indexOfFirst { it.first == subject.name }
-                if (index >= 0) {
-                    scoreTexts[index] = if (subject.score % 1.0 == 0.0) {
-                        subject.score.toInt().toString()
-                    } else {
-                        subject.score.toString()
-                    }
+                scoreTexts[subject.name] = if (subject.score % 1.0 == 0.0) {
+                    subject.score.toInt().toString()
+                } else {
+                    subject.score.toString()
                 }
             }
             AppToast.success("识别成功，请核对后保存")
@@ -153,156 +175,55 @@ fun AiScoreInputScreen(
         }
     }
 
+    val texts = formSubjects.map { scoreTexts[it.name].orEmpty() }
+    val hasOverflow = scoreFormHasOverflow(formSubjects, texts)
+    val entries = formSubjects.mapIndexed { index, subject ->
+        ScoreEntry(
+            name = subject.name,
+            score = texts[index].toDoubleOrNull() ?: 0.0,
+            fullScore = subject.fullScore,
+        )
+    }
+    val canSave = examName.isNotBlank() && !hasOverflow && entries.any { it.score > 0 }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = ScoreTraceColors.PageBackgroundLight,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AiScoreTopBar(onBack = onBack)
+            ScoreInputTopBar(title = "AI 录成绩", onBack = onBack)
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                UploadScoreCard(onClick = { showSourceSheet = true })
+
                 if (pickedImageUri != null) {
-                    SectionCard {
-                        Text("成绩单图片", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        AsyncImage(
-                            model = pickedImageUri,
-                            contentDescription = "成绩单预览",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = loadingStage ?: "识别完成后请核对各科分数，必要时手动修正",
-                            fontSize = 13.sp,
-                            color = if (loadingStage != null) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextSecondaryLight,
-                        )
-                    }
-                }
-
-                SectionCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("考试信息", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.12f))
-                                .clickable { showTypeDialog = true },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_photo_camera),
-                                contentDescription = "拍照或从相册选择",
-                                tint = ScoreTraceColors.BrandPrimary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = examName,
-                        onValueChange = { examName = it },
-                        label = { Text("考试名称") },
-                        placeholder = { Text("如：高三10月月考") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = examDateText,
-                        onValueChange = { examDateText = it },
-                        label = { Text("考试日期（yyyy-MM-dd）") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = classRankText,
-                        onValueChange = { classRankText = it.filter(Char::isDigit) },
-                        label = { Text("班级排名（可空）") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
+                    RecognizePreviewCard(
+                        imageUri = pickedImageUri!!,
+                        loadingStage = loadingStage,
+                        outcome = outcome,
                     )
                 }
 
-                SectionCard {
-                    Text("各科分数", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ScoreTraceColors.TextPrimaryLight)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    FORM_SUBJECTS.forEachIndexed { index, (name, fullScore) ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                thickness = 0.5.dp,
-                                color = ScoreTraceColors.CardBorderLight,
-                            )
-                        }
-                        val score = scoreTexts[index].toDoubleOrNull() ?: 0.0
-                        val overflow = score > fullScore
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = name,
-                                fontSize = 15.sp,
-                                color = ScoreTraceColors.TextPrimaryLight,
-                                modifier = Modifier.width(52.dp),
-                            )
-                            OutlinedTextField(
-                                value = scoreTexts[index],
-                                onValueChange = { scoreTexts[index] = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                                placeholder = { Text("0", fontSize = 14.sp) },
-                                isError = overflow,
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "/ ${fullScore.toInt()}",
-                                fontSize = 13.sp,
-                                color = if (overflow) ScoreTraceColors.ErrorRed else ScoreTraceColors.TextSecondaryLight,
-                            )
-                        }
-                    }
-                }
-
-                SectionCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("总分", fontSize = 13.sp, color = ScoreTraceColors.TextSecondaryLight)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${total.toInt()}",
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ScoreTraceColors.BrandPrimary,
-                            )
-                        }
-                        Text(
-                            text = if (hasOverflow) "有科目超过满分，请检查" else "各科分之和自动汇总",
-                            fontSize = 12.sp,
-                            color = if (hasOverflow) ScoreTraceColors.ErrorRed else ScoreTraceColors.TextTertiaryLight,
-                        )
-                    }
-                }
+                ScoreEntryForm(
+                    examName = examName,
+                    onExamNameChange = { examName = it },
+                    examDate = Date(examDateMillis),
+                    onExamDateChange = { examDateMillis = it.time },
+                    classRank = classRank,
+                    onClassRankChange = { classRank = it },
+                    gradeRank = gradeRank,
+                    onGradeRankChange = { gradeRank = it },
+                    subjects = formSubjects,
+                    scoreTexts = texts,
+                    onScoreChange = { index, value -> scoreTexts[formSubjects[index].name] = value },
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
             }
@@ -312,10 +233,45 @@ fun AiScoreInputScreen(
                 onSave = {
                     viewModel.save(
                         examName = examName.trim(),
-                        examDate = DateUtils.parseDate(examDateText) ?: Date(),
-                        classRank = classRankText.toIntOrNull(),
+                        examDate = Date(examDateMillis),
+                        classRank = classRank.toIntOrNull(),
+                        gradeRank = gradeRank.toIntOrNull(),
                         entries = entries.filter { it.score > 0 },
                         onSaved = onSaved,
+                    )
+                },
+            )
+        }
+    }
+
+    if (showSourceSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showSourceSheet = false },
+            sheetState = sheetState,
+            containerColor = ScoreTraceColors.CardBackgroundLight,
+        ) {
+            SourcePickerContent(
+                onCamera = {
+                    showSourceSheet = false
+                    val uri = createTempImageUri(context)
+                    cameraUri = uri
+                    // ActivityResultContracts 不自动授予写入权限，需显式带 ClipData + flags，否则相机写入会被拒
+                    val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                        putExtra(MediaStore.EXTRA_OUTPUT, uri)
+                        clipData = ClipData.newRawUri(null, uri)
+                        addFlags(
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    }
+                    runCatching { cameraLauncher.launch(intent) }
+                        .onFailure { AppToast.error("无法打开相机") }
+                },
+                onGallery = {
+                    showSourceSheet = false
+                    galleryPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
             )
@@ -325,11 +281,8 @@ fun AiScoreInputScreen(
     if (showTypeDialog) {
         SheetTypeDialog(
             onSelect = { type ->
-                selectedSheetType = type
                 showTypeDialog = false
-                imagePicker.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                )
+                viewModel.parseWithType(type)
             },
             onDismiss = { showTypeDialog = false },
         )
@@ -349,6 +302,245 @@ fun AiScoreInputScreen(
             onConfirm = viewModel::onConfirmSubjectSwitch,
             onDismiss = viewModel::onCancelSubjectSwitch,
         )
+    }
+}
+
+/** 顶部「上传成绩单」渐变大按钮。 */
+@Composable
+private fun UploadScoreCard(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(ScoreTraceColors.BrandPrimary, ScoreTraceColors.AccentCyan),
+                ),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_photo_camera),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "上传成绩单",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "拍照或从相册选择，AI 自动识别并录入",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+        }
+    }
+}
+
+/** 图片预览 + 识别状态反馈（识别中跳动动画 / 成功 / 失败）。 */
+@Composable
+private fun RecognizePreviewCard(
+    imageUri: Uri,
+    loadingStage: String?,
+    outcome: RecognizeOutcome?,
+) {
+    ScoreSectionCard {
+        Text(
+            text = "成绩单图片",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = ScoreTraceColors.TextPrimaryLight,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        AsyncImage(
+            model = imageUri,
+            contentDescription = "成绩单预览",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clip(RoundedCornerShape(12.dp)),
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        RecognizeStatus(loadingStage = loadingStage, outcome = outcome)
+    }
+}
+
+@Composable
+private fun RecognizeStatus(loadingStage: String?, outcome: RecognizeOutcome?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when {
+            loadingStage != null -> {
+                RecognizingDots()
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = loadingStage,
+                    fontSize = 13.sp,
+                    color = ScoreTraceColors.BrandPrimary,
+                )
+            }
+
+            outcome == RecognizeOutcome.SUCCESS -> {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = ScoreTraceColors.SuccessGreen,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "识别完成，请核对",
+                    fontSize = 13.sp,
+                    color = ScoreTraceColors.SuccessGreen,
+                )
+            }
+
+            outcome == RecognizeOutcome.FAILED -> {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                    tint = ScoreTraceColors.ErrorRed,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "未能识别，请手动填写",
+                    fontSize = 13.sp,
+                    color = ScoreTraceColors.ErrorRed,
+                )
+            }
+
+            else -> Text(
+                text = "识别完成后请核对各科分数，必要时手动修正",
+                fontSize = 13.sp,
+                color = ScoreTraceColors.TextSecondaryLight,
+            )
+        }
+    }
+}
+
+/** 三颗上下跳动的点，表示 AI 正在识别。 */
+@Composable
+private fun RecognizingDots() {
+    val transition = rememberInfiniteTransition(label = "recognizing")
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        repeat(3) { index ->
+            val offsetY = transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 420, delayMillis = index * 140),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "dot$index",
+            )
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 1.5.dp)
+                    .size(6.dp)
+                    .graphicsLayer { translationY = -offsetY.value * 5f }
+                    .clip(CircleShape)
+                    .background(ScoreTraceColors.BrandPrimary),
+            )
+        }
+    }
+}
+
+/** 「拍照 / 从相册选择」BottomSheet 内容。 */
+@Composable
+private fun SourcePickerContent(onCamera: () -> Unit, onGallery: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "上传成绩单",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = ScoreTraceColors.TextPrimaryLight,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        SourceOption(
+            iconRes = R.drawable.ic_photo_camera,
+            tint = ScoreTraceColors.BrandPrimary,
+            title = "拍照",
+            subtitle = "用相机拍摄成绩单",
+            onClick = onCamera,
+        )
+        SourceOption(
+            iconRes = R.drawable.ic_image,
+            tint = ScoreTraceColors.SuccessGreen,
+            title = "从相册选择",
+            subtitle = "选择已保存的成绩单图片",
+            onClick = onGallery,
+        )
+    }
+}
+
+@Composable
+private fun SourceOption(
+    iconRes: Int,
+    tint: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(tint.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = ScoreTraceColors.TextPrimaryLight,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = ScoreTraceColors.TextSecondaryLight,
+            )
+        }
     }
 }
 
@@ -473,86 +665,8 @@ private fun SubjectMismatchDialog(
     )
 }
 
-@Composable
-private fun AiScoreTopBar(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 12.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.White)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "返回",
-                tint = ScoreTraceColors.TextPrimaryLight,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "AI 录成绩",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = ScoreTraceColors.TextPrimaryLight,
-        )
-    }
-}
-
-@Composable
-private fun SectionCard(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(14.dp),
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun SaveBar(enabled: Boolean, onSave: () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            val shape = RoundedCornerShape(26.dp)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(shape)
-                    .background(
-                        if (enabled) {
-                            Brush.horizontalGradient(
-                                listOf(ScoreTraceColors.BrandPrimary, ScoreTraceColors.AccentCyan),
-                            )
-                        } else {
-                            Brush.horizontalGradient(listOf(Color(0xFFC3CBD8), Color(0xFFC3CBD8)))
-                        },
-                    )
-                    .then(if (enabled) Modifier.clickable(onClick = onSave) else Modifier),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "保存成绩",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
-            }
-        }
-    }
+/** 在缓存目录建一个临时文件并返回可供相机写入的 content Uri。 */
+private fun createTempImageUri(context: android.content.Context): Uri {
+    val file = File(context.cacheDir, "score_sheet_${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }

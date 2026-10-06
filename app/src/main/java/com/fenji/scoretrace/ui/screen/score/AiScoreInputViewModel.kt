@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fenji.scoretrace.data.local.UserPreferences
-import com.fenji.scoretrace.data.local.entity.Subject
 import com.fenji.scoretrace.data.remote.glm.dto.ScoreSheetType
 import com.fenji.scoretrace.data.repository.ExamRecordRepository
 import com.fenji.scoretrace.data.repository.GlmException
@@ -17,6 +16,9 @@ import com.fenji.scoretrace.data.repository.ScoreSheetData
 import com.fenji.scoretrace.data.repository.SubjectRepository
 import com.fenji.scoretrace.data.repository.VisionResult
 import com.fenji.scoretrace.data.repository.VisionStage
+import com.fenji.scoretrace.ui.component.score.ScoreFormSubject
+import com.fenji.scoretrace.ui.component.score.scoreFormSubjects
+import com.fenji.scoretrace.util.AppLogger
 import com.fenji.scoretrace.util.ImageEncoder
 import com.google.gson.JsonParseException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,6 +42,9 @@ data class ScoreEntry(val name: String, val score: Double, val fullScore: Double
 /** 识别出的科目与用户选科不一致时，供 UI 弹窗展示。 */
 data class SubjectMismatch(val recognized: List<String>, val current: List<String>)
 
+/** 识别结果，驱动顶部状态反馈文案。 */
+enum class RecognizeOutcome { SUCCESS, FAILED }
+
 @HiltViewModel
 class AiScoreInputViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
@@ -50,16 +56,22 @@ class AiScoreInputViewModel @Inject constructor(
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
-    val subjects: StateFlow<List<Subject>> = subjectRepository.observeSubjects()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /** 是否正在识别成绩单图片 */
-    private val _isParsing = MutableStateFlow(false)
-    val isParsing: StateFlow<Boolean> = _isParsing.asStateFlow()
+    /** 表单科目：语数英 + 用户选考三科 */
+    val formSubjects: StateFlow<List<ScoreFormSubject>> = userPreferences.selectedSubjects
+        .map { scoreFormSubjects(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = scoreFormSubjects(emptyList()),
+        )
 
     /** 分阶段 loading 文案；null 表示不在识别中 */
     private val _loadingStage = MutableStateFlow<String?>(null)
     val loadingStage: StateFlow<String?> = _loadingStage.asStateFlow()
+
+    /** 识别结果（成功/失败）；null 表示尚无结果 */
+    private val _recognizeOutcome = MutableStateFlow<RecognizeOutcome?>(null)
+    val recognizeOutcome: StateFlow<RecognizeOutcome?> = _recognizeOutcome.asStateFlow()
 
     /** 图片识别的一次性提示（成功/失败/信息），UI 消费后调用 [clearParseHint] */
     private val _parseHint = MutableStateFlow<String?>(null)
@@ -77,37 +89,31 @@ class AiScoreInputViewModel @Inject constructor(
     private val _subjectMismatch = MutableStateFlow<SubjectMismatch?>(null)
     val subjectMismatch: StateFlow<SubjectMismatch?> = _subjectMismatch.asStateFlow()
 
-    /** 用户选定的图片类型（PERSONAL / CLASS_RANKING） */
-    private var pendingSheetType: ScoreSheetType? = null
+    /** 自动判断失败/内容审核时置位，请求 UI 弹出类型选择降级 */
+    private val _reopenTypeSelector = MutableStateFlow(false)
+    val reopenTypeSelector: StateFlow<Boolean> = _reopenTypeSelector.asStateFlow()
 
-    /** 等待姓名输入时暂存的图片（base64 data URL） */
+    /** 等待姓名输入或降级手选时暂存的图片（base64 data URL） */
     private var pendingImageDataUrl: String? = null
 
     /** 等待选科确认时暂存的成绩数据 */
     private var pendingScoreData: ScoreSheetData? = null
-
-    /** 内容审核（1301）失败时置位，请求 UI 重新弹出类型选择 */
-    private val _reopenTypeSelector = MutableStateFlow(false)
-    val reopenTypeSelector: StateFlow<Boolean> = _reopenTypeSelector.asStateFlow()
 
     fun consumeReopenTypeSelector() {
         _reopenTypeSelector.value = false
     }
 
     /**
-     * 识别成绩单图片：Uri → 压缩为 base64 → 按用户选定的 [type] 提取。
-     * 个人成绩单直接回填（校验选科）；班级排名表则先弹窗收集姓名。
+     * 选中图片：压缩 → AI 自动判断类型 → 分派。
+     *
+     * 个人成绩单直接提取回填；班级排名表转姓名弹窗；判断失败/不确定/内容审核 → 降级为手动选择类型。
      */
-    fun parseScoreImage(image: Uri, type: ScoreSheetType) {
-        if (_isParsing.value) return
-        _isParsing.value = true
+    fun onImagePicked(image: Uri) {
+        if (_loadingStage.value != null) return
         _parseHint.value = null
-        pendingSheetType = type
+        _recognizeOutcome.value = null
+        _loadingStage.value = "正在读取图片…"
         viewModelScope.launch {
-            _loadingStage.value = when (type) {
-                ScoreSheetType.CLASS_RANKING -> "正在读取图片…"
-                else -> "正在提取成绩…"
-            }
             val dataUrl = withContext(Dispatchers.IO) {
                 ImageEncoder.uriToDataUrl(appContext, image)
             }
@@ -115,23 +121,70 @@ class AiScoreInputViewModel @Inject constructor(
                 fail("无法读取所选图片，请重新选择或手动录入")
                 return@launch
             }
-            val result = glmVisionRepository.recognizeScoreSheet(dataUrl, type, name = null, onStage = ::onStage)
-            handleVisionResult(result, dataUrl)
+            pendingImageDataUrl = dataUrl
+            _loadingStage.value = "正在判断图片类型…"
+            glmVisionRepository.detectSheetType(dataUrl)
+                .onSuccess { auto ->
+                    AppLogger.i("AiVision", "autoType=$auto userType=null")
+                    when (auto) {
+                        ScoreSheetType.PERSONAL -> extractWithType(dataUrl, ScoreSheetType.PERSONAL)
+                        ScoreSheetType.CLASS_RANKING -> {
+                            stopLoading()
+                            _pendingNameInput.value = true
+                        }
+                        ScoreSheetType.OTHER -> fallbackToManualSelection("AI 未能确定图片类型，请手动选择")
+                    }
+                }
+                .onFailure { error ->
+                    val code = (error as? GlmException)?.code
+                    AppLogger.e("AiVision", "detect failed code=$code", error)
+                    val message = when (code) {
+                        CODE_CONTENT_REVIEW -> "图片可能含敏感内容，请更换或手动选择类型"
+                        CODE_RATE_LIMIT -> "服务繁忙，请稍后重试或手动选择类型"
+                        else -> "AI 未能识别图片类型，请手动选择"
+                    }
+                    fallbackToManualSelection(message)
+                }
         }
+    }
+
+    /** 用户在降级弹窗中手动选定图片类型。 */
+    fun parseWithType(type: ScoreSheetType) {
+        val dataUrl = pendingImageDataUrl ?: return
+        AppLogger.i("AiVision", "autoType=failed userType=$type")
+        _parseHint.value = null
+        _recognizeOutcome.value = null
+        if (type == ScoreSheetType.CLASS_RANKING) {
+            stopLoading()
+            _pendingNameInput.value = true
+            return
+        }
+        _loadingStage.value = "正在提取成绩…"
+        viewModelScope.launch { extractWithType(dataUrl, type) }
+    }
+
+    private suspend fun extractWithType(dataUrl: String, type: ScoreSheetType) {
+        if (_loadingStage.value == null) _loadingStage.value = "正在提取成绩…"
+        val result = glmVisionRepository.recognizeScoreSheet(dataUrl, type, name = null, onStage = ::onStage)
+        handleVisionResult(result, dataUrl)
     }
 
     /** 用户在姓名弹窗中提交姓名（仅班级排名表场景）。 */
     fun onNameSubmitted(name: String) {
         val dataUrl = pendingImageDataUrl ?: return
-        val type = pendingSheetType ?: return
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         _pendingNameInput.value = false
-        _isParsing.value = true
         _parseHint.value = null
+        _recognizeOutcome.value = null
         _loadingStage.value = "正在查找 $trimmed 的成绩…"
         viewModelScope.launch {
-            val result = glmVisionRepository.recognizeScoreSheet(dataUrl, type, name = trimmed, onStage = ::onStage)
+            val result = glmVisionRepository.recognizeScoreSheet(
+                dataUrl,
+                ScoreSheetType.CLASS_RANKING,
+                name = trimmed,
+                onStage = ::onStage,
+            )
             handleVisionResult(result, dataUrl)
         }
     }
@@ -139,7 +192,6 @@ class AiScoreInputViewModel @Inject constructor(
     fun onCancelNameInput() {
         _pendingNameInput.value = false
         pendingImageDataUrl = null
-        pendingSheetType = null
         stopLoading()
     }
 
@@ -151,6 +203,7 @@ class AiScoreInputViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferences.setSelectedSubjects(electives)
             _parsedSheet.value = data
+            _recognizeOutcome.value = RecognizeOutcome.SUCCESS
             _subjectMismatch.value = null
             pendingScoreData = null
             _parseHint.value = "选科配置已同步更新"
@@ -193,6 +246,7 @@ class AiScoreInputViewModel @Inject constructor(
 
                     is VisionResult.Error -> {
                         stopLoading()
+                        _recognizeOutcome.value = RecognizeOutcome.FAILED
                         _parseHint.value = describeError(GlmException(vision.code, vision.message))
                         // 内容审核（1301）：让用户重新选择类型 / 更换图片
                         if (vision.code == CODE_CONTENT_REVIEW) {
@@ -203,6 +257,7 @@ class AiScoreInputViewModel @Inject constructor(
             }
             .onFailure { error ->
                 stopLoading()
+                _recognizeOutcome.value = RecognizeOutcome.FAILED
                 _parseHint.value = describeError(error)
             }
     }
@@ -216,6 +271,7 @@ class AiScoreInputViewModel @Inject constructor(
             stopLoading()
             if (recognized.toSet() == expected.toSet()) {
                 _parsedSheet.value = data
+                _recognizeOutcome.value = RecognizeOutcome.SUCCESS
             } else {
                 pendingScoreData = data
                 _subjectMismatch.value = SubjectMismatch(recognized = recognized, current = selected)
@@ -223,13 +279,19 @@ class AiScoreInputViewModel @Inject constructor(
         }
     }
 
+    private fun fallbackToManualSelection(message: String) {
+        stopLoading()
+        _parseHint.value = message
+        _reopenTypeSelector.value = true
+    }
+
     private fun stopLoading() {
-        _isParsing.value = false
         _loadingStage.value = null
     }
 
     private fun fail(message: String) {
         stopLoading()
+        _recognizeOutcome.value = RecognizeOutcome.FAILED
         _parseHint.value = message
     }
 
@@ -250,17 +312,19 @@ class AiScoreInputViewModel @Inject constructor(
     }
 
     /**
-     * 保存一次考试：逐科写成绩记录，写考试排名，并生成一条「新成绩已录入」通知。
-     * 只写有分的科目；总分由各科分实时求和（表单已即时校验）。
+     * 保存一次考试：逐科写成绩记录，写考试排名（含年级排名），并生成一条「新成绩已录入」通知。
+     * 写入前先删除同名旧记录，避免重复保存造成同科多行。只写有分的科目。
      */
     fun save(
         examName: String,
         examDate: Date,
         classRank: Int?,
+        gradeRank: Int?,
         entries: List<ScoreEntry>,
         onSaved: () -> Unit,
     ) {
         viewModelScope.launch {
+            scoreRecordRepository.deleteExamByName(examName)
             val idByName = subjectRepository.observeSubjects().first().associate { it.name to it.id }
             var total = 0.0
             entries.forEach { entry ->
@@ -280,7 +344,7 @@ class AiScoreInputViewModel @Inject constructor(
                 examName = examName,
                 examDate = examDate,
                 classRank = classRank,
-                gradeRank = null,
+                gradeRank = gradeRank,
             )
             val rankText = classRank?.let { " · 班级第$it" }.orEmpty()
             notificationRepository.add(
@@ -295,6 +359,7 @@ class AiScoreInputViewModel @Inject constructor(
     private companion object {
         const val CODE_NOT_FOUND = "NOT_FOUND"
         const val CODE_CONTENT_REVIEW = "1301"
+        const val CODE_RATE_LIMIT = "1305"
         val REQUIRED_SUBJECTS = listOf("语文", "数学", "英语")
     }
 }

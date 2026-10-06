@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,10 +24,12 @@ import androidx.compose.ui.unit.sp
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
-/** 成绩页顶部标题栏：「成绩」标题 + 右侧筛选按钮。 */
+/** 成绩页顶部标题栏：「成绩」标题 + 右侧筛选按钮（筛选生效时高亮 + 角标）。 */
 @Composable
 fun ScoreTopBar(
     onFilterClick: () -> Unit,
+    filterActive: Boolean = false,
+    filterCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -42,20 +45,42 @@ fun ScoreTopBar(
             color = ScoreTraceColors.TextPrimaryLight,
         )
         Spacer(modifier = Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .clickable(onClick = onFilterClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_filter_list),
-                contentDescription = "筛选",
-                tint = ScoreTraceColors.TextPrimaryLight,
-                modifier = Modifier.size(20.dp),
-            )
+        Box(modifier = Modifier.size(40.dp)) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(CircleShape)
+                    .background(
+                        if (filterActive) ScoreTraceColors.BrandPrimary.copy(alpha = 0.12f)
+                        else MaterialTheme.colorScheme.surface
+                    )
+                    .clickable(onClick = onFilterClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_filter_list),
+                    contentDescription = "筛选",
+                    tint = if (filterActive) ScoreTraceColors.BrandPrimary else ScoreTraceColors.TextPrimaryLight,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            if (filterCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(ScoreTraceColors.ErrorRed),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = filterCount.toString(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
+            }
         }
     }
 }

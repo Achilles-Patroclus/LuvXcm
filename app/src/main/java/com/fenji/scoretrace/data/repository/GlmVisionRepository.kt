@@ -47,6 +47,12 @@ interface GlmVisionRepository {
         name: String? = null,
         onStage: (VisionStage) -> Unit = {},
     ): Result<VisionResult>
+
+    /**
+     * 自动判断图片类型：personal / class_ranking / other。
+     * 作为「AI 自动判断」主流程的第一步；失败或不确定（other）时由 UI 降级为手动选择。
+     */
+    suspend fun detectSheetType(imageDataUrl: String): Result<ScoreSheetType>
 }
 
 @Singleton
@@ -99,11 +105,8 @@ class DefaultGlmVisionRepository @Inject constructor(
         ScoreSheetType.OTHER -> Result.success(VisionResult.Error("UNSUPPORTED", "不支持的图片类型"))
     }
 
-    /**
-     * 保留供未来「自动判断类型」使用；当前主流程已改为用户主动选择类型，不再调用。
-     */
-    @Suppress("unused")
-    private suspend fun detectSheetType(imageDataUrl: String): Result<ScoreSheetType> =
+    /** 自动判断图片类型，供「AI 自动判断」主流程使用。 */
+    override suspend fun detectSheetType(imageDataUrl: String): Result<ScoreSheetType> =
         callModel(imageDataUrl, TYPE_PROMPT, MAX_TOKENS_TYPE).mapCatching { content ->
             val dto = parseJson(cleanJsonContent(content), TypeRaw::class.java)
             when (dto?.type?.trim()?.lowercase()) {

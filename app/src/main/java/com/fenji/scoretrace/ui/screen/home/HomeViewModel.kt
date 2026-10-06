@@ -227,6 +227,27 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { targetSchoolRepository.delete(entity) }
     }
 
+    /** 「换一换」：忽略当日缓存，重新生成一条今日 AI 重点。 */
+    fun refreshAiFocus() {
+        viewModelScope.launch {
+            val signal = focusSignal(
+                scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT).first(),
+                targetSchoolRepository.observeLatest().first()?.schoolName,
+            )
+            loadOrGenerateAiFocus(signal, force = true)
+        }
+    }
+
+    /** 剥离去 Markdown 标记（**加粗**、# 标题、`行内代码`、*斜体*），卡片按纯文本展示。 */
+    private fun stripMarkdown(text: String): String =
+        text
+            .replace(Regex("\\*\\*(.+?)\\*\\*"), "\$1")
+            .replace(Regex("^#{1,6}\\s*", RegexOption.MULTILINE), "")
+            .replace(Regex("`(.+?)`"), "\$1")
+            .replace(Regex("__(.+?)__"), "\$1")
+            .replace(Regex("\\*(.+?)\\*"), "\$1")
+            .trim()
+
     /**
      * 成绩 / 目标院校的数据指纹：任一项变化都会改变它，用于判断 AI 重点缓存是否失效。
      * 取「目标院校名 + 成绩条数 + 最近一次考试名 + 该次总分」。
@@ -241,13 +262,13 @@ class HomeViewModel @Inject constructor(
      * 今日 AI 重点：仅当「当天生成过 **且** 数据指纹一致」时才用缓存；否则调用 DeepSeek
      * 依据最近成绩生成一条，写入 DataStore 并生成一条「AI 建议」通知。
      */
-    private suspend fun loadOrGenerateAiFocus(signal: String) {
+    private suspend fun loadOrGenerateAiFocus(signal: String, force: Boolean = false) {
         val today = LocalDate.now().toString()
         val cachedDate = userPreferences.aiFocusDate.first()
         val cachedSignal = userPreferences.aiFocusSignal.first()
         val cached = userPreferences.aiFocus.first()
-        if (cachedDate == today && cachedSignal == signal && !cached.isNullOrBlank()) {
-            _aiFocus.value = cached
+        if (!force && cachedDate == today && cachedSignal == signal && !cached.isNullOrBlank()) {
+            _aiFocus.value = stripMarkdown(cached)
             return
         }
         val scoreSummary = buildScoreSummary()
@@ -263,11 +284,13 @@ class HomeViewModel @Inject constructor(
             不要泛泛而谈，要引用上面的分数或目标院校。
         """.trimIndent()
         val result = deepSeekRepository.chat(listOf(ChatRequest.Message(role = "user", content = prompt)))
-        val focus = result.getOrNull()
-            ?.choices?.firstOrNull()?.message?.content?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: cached?.takeIf { it.isNotBlank() }
-            ?: DEFAULT_AI_FOCUS
+        val focus = stripMarkdown(
+            result.getOrNull()
+                ?.choices?.firstOrNull()?.message?.content?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?: cached?.takeIf { it.isNotBlank() }
+                ?: DEFAULT_AI_FOCUS,
+        )
         _aiFocus.value = focus
         userPreferences.saveAiFocus(focus, today, signal)
         if (result.isSuccess) {

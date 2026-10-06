@@ -33,6 +33,8 @@ class DefaultExamRecordRepository @Inject constructor(
         classRank: Int?,
         gradeRank: Int?,
     ) {
+        // 覆盖式：先清同名旧行，避免同一考试重复保存累积多条排名行
+        examRecordDao.deleteByExamName(examName)
         examRecordDao.upsert(
             ExamRecord(
                 examName = examName,

@@ -69,6 +69,7 @@ import com.fenji.scoretrace.ui.screen.mine.MineScreen
 import com.fenji.scoretrace.ui.screen.notification.NotificationScreen
 import com.fenji.scoretrace.ui.screen.school.TargetSchoolScreen
 import com.fenji.scoretrace.ui.screen.score.AiScoreInputScreen
+import com.fenji.scoretrace.ui.screen.score.ManualScoreInputScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreScreenNew
 import com.fenji.scoretrace.ui.screen.settings.SettingsScreen
@@ -95,10 +96,13 @@ fun AppNavHost(
     val imeVisible = WindowInsets.isImeVisible
     // 首页悬浮音乐面板状态提升到此处：点击任意底部 Tab 时一并收起（面板是跨 Tab 的全局浮层）
     var showMusicPanel by rememberSaveable { mutableStateOf(false) }
+    // 成绩详情「AI分析本次考试」注入的问题：切到 AI Tab 后由 AiScreen 消费并自动发起对话
+    var pendingAiPrompt by rememberSaveable { mutableStateOf<String?>(null) }
     // 全屏页（设计稿无底部导航栏）：成绩详情、目标院校、AI录成绩、通知中心均隐藏底栏
     val hideBottomBar = currentRoute?.startsWith("score_detail") == true ||
         currentRoute == Screen.TargetSchool.route ||
         currentRoute == Screen.AiScoreInput.route ||
+        currentRoute?.startsWith("manual_score_input") == true ||
         currentRoute == Screen.Notifications.route ||
         currentRoute == Screen.SubjectConfig.route ||
         currentRoute == Screen.StudyTimer.route ||
@@ -200,6 +204,7 @@ fun AppNavHost(
                     onOpenScore = { navController.navigateToTab(Screen.Score) },
                     onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
                     onOpenAiScore = { navController.navigate(Screen.AiScoreInput.createRoute()) },
+                    onOpenManualScore = { navController.navigate(Screen.ManualScoreInput.createRoute()) },
                     onOpenNotification = { navController.navigate(Screen.Notifications.route) },
                     onOpenTimer = { navController.navigate(Screen.StudyTimer.route) },
                 )
@@ -228,6 +233,8 @@ fun AppNavHost(
                         entry.savedStateHandle[KEY_LOAD_CONVERSATION] = -1L
                         entry.savedStateHandle[KEY_NEW_CHAT] = 0L
                     },
+                    pendingPrompt = pendingAiPrompt,
+                    onPromptConsumed = { pendingAiPrompt = null },
                 )
             }
             composable(
@@ -249,8 +256,18 @@ fun AppNavHost(
                 arguments = listOf(
                     navArgument(Screen.ScoreDetail.ARG_EXAM_ID) { type = NavType.LongType },
                 ),
-            ) {
-                ScoreDetailScreen(onBack = { navController.popBackStack() })
+            ) { entry ->
+                ScoreDetailScreen(
+                    examId = entry.arguments?.getLong(Screen.ScoreDetail.ARG_EXAM_ID) ?: 0L,
+                    onBack = { navController.popBackStack() },
+                    onAiAnalyze = { prompt ->
+                        pendingAiPrompt = prompt
+                        navController.navigateToTab(Screen.AI)
+                    },
+                    onEdit = { examId ->
+                        navController.navigate(Screen.ManualScoreInput.createRoute(examId))
+                    },
+                )
             }
             composable(
                 route = Screen.Mine.route,
@@ -281,6 +298,20 @@ fun AppNavHost(
             ) { entry ->
                 AiScoreInputScreen(
                     autoPickImage = entry.arguments?.getBoolean(Screen.AiScoreInput.ARG_AUTO_PICK) ?: false,
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = Screen.ManualScoreInput.route,
+                arguments = listOf(
+                    navArgument(Screen.ManualScoreInput.ARG_EXAM_ID) {
+                        type = NavType.LongType
+                        defaultValue = Screen.ManualScoreInput.NO_EXAM_ID
+                    },
+                ),
+            ) {
+                ManualScoreInputScreen(
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )

@@ -22,12 +22,17 @@ data class ExamAggregate(
 fun aggregateExams(scores: List<ScoreRecord>): List<ExamAggregate> =
     scores.groupBy { it.examName }
         .map { (name, records) ->
+            // 同一次考试同一科只应有一条：历史脏数据（重复保存）按 id 去重，保留最新一条，
+            // 否则总分与各科明细都会重复累加。
+            val deduped = records
+                .groupBy { it.subjectId }
+                .map { (_, rows) -> rows.maxBy { it.id } }
             ExamAggregate(
                 name = name,
-                date = records.maxOf { it.examDate },
-                totalScore = records.sumOf { it.score }.toInt(),
-                fullScore = records.sumOf { it.fullScore }.toInt(),
-                records = records,
+                date = deduped.maxOf { it.examDate },
+                totalScore = deduped.sumOf { it.score }.toInt(),
+                fullScore = deduped.sumOf { it.fullScore }.toInt(),
+                records = deduped,
             )
         }
         .sortedByDescending { it.date }

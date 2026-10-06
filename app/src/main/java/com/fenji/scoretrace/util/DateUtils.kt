@@ -8,6 +8,8 @@ import java.util.TimeZone
 
 object DateUtils {
 
+    private const val CHINESE_DATE_PATTERN = "yyyy年M月d日"
+
     private fun dateFormat() = SimpleDateFormat(Constants.DATE_PATTERN, Locale.getDefault())
 
     private fun dateTimeFormat() = SimpleDateFormat(Constants.DATE_TIME_PATTERN, Locale.getDefault())
@@ -17,6 +19,10 @@ object DateUtils {
         SimpleDateFormat(Constants.HEADER_DATE_PATTERN, Locale.CHINESE).format(date)
 
     fun formatDate(date: Date?): String = date?.let { dateFormat().format(it) }.orEmpty()
+
+    /** 用户可读的中文日期，如「2026年10月6日」；固定中文 Locale。 */
+    fun formatChineseDate(date: Date?): String =
+        date?.let { SimpleDateFormat(CHINESE_DATE_PATTERN, Locale.CHINESE).format(it) }.orEmpty()
 
     fun formatDateTime(date: Date?): String = date?.let { dateTimeFormat().format(it) }.orEmpty()
 

@@ -29,6 +29,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 拍照识分：为相机 App 提供写入临时图片的 content Uri -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.fenji.scoretrace.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

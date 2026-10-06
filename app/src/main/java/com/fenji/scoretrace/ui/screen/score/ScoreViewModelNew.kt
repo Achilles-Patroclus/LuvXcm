@@ -47,6 +47,39 @@ enum class AnalysisTab(val label: String) {
     StrongWeak("强弱科"),
 }
 
+/** 筛选：时间范围 */
+enum class FilterTimeRange(val label: String) {
+    All("全部"),
+    Recent1M("近 1 个月"),
+    Recent3M("近 3 个月"),
+    Recent6M("近半年"),
+}
+
+/** 筛选：排序方式 */
+enum class FilterSort(val label: String) {
+    TimeDesc("按时间降序"),
+    TotalDesc("按总分降序"),
+    TotalAsc("按总分升序"),
+}
+
+/**
+ * 成绩页筛选条件。
+ *
+ * subject 非空时：历史列表只保留含该科目的考试，趋势图切换为该科目的分数趋势；
+ * timeRange 过滤考试日期；sort 决定历史列表排序。
+ */
+data class ScoreFilterState(
+    val subject: String? = null,
+    val timeRange: FilterTimeRange = FilterTimeRange.All,
+    val sort: FilterSort = FilterSort.TimeDesc,
+) {
+    /** 生效的筛选项数量（用于按钮角标） */
+    val activeCount: Int
+        get() = (if (subject != null) 1 else 0) +
+            (if (timeRange != FilterTimeRange.All) 1 else 0) +
+            (if (sort != FilterSort.TimeDesc) 1 else 0)
+}
+
 /** 一次考试的总分趋势数据点 */
 data class TrendPoint(
     val monthLabel: String,
@@ -104,6 +137,11 @@ data class ScorePageUiState(
     val subjectRates: List<SubjectScore> = emptyList(),
     val subjectTrend: SubjectTrend = SubjectTrend(),
     val historyGroups: List<HistoryGroup> = emptyList(),
+    val filter: ScoreFilterState = ScoreFilterState(),
+    /** 趋势卡标题：无科目筛选时为「总分趋势」，否则为「X趋势」 */
+    val trendTitle: String = "总分趋势",
+    /** 筛选面板可选的科目（语数英 + 用户选科） */
+    val filterSubjects: List<String> = emptyList(),
 )
 
 /** 各科分析的三个可变控制项合并成一个流，便于与其它数据流一起 combine */
@@ -111,6 +149,7 @@ private data class AnalysisControls(
     val range: TrendRange,
     val tab: AnalysisTab,
     val subject: String,
+    val filter: ScoreFilterState,
 )
 
 /** 成绩数据源（不含目标院校）：与目标院校流一起 combine，避免超过 5 元组合上限 */
@@ -134,9 +173,11 @@ class ScoreViewModelNew @Inject constructor(
     private val _trendRange = MutableStateFlow(TrendRange.Recent6)
     private val _analysisTab = MutableStateFlow(AnalysisTab.Radar)
     private val _selectedSubject = MutableStateFlow("数学")
+    private val _filter = MutableStateFlow(ScoreFilterState())
 
-    private val _controls = combine(_trendRange, _analysisTab, _selectedSubject) { range, tab, subject ->
-        AnalysisControls(range, tab, subject)
+    private val _controls = combine(_trendRange, _analysisTab, _selectedSubject, _filter) {
+            range, tab, subject, filter ->
+        AnalysisControls(range, tab, subject, filter)
     }
 
     val uiState: StateFlow<ScorePageUiState> = combine(
@@ -158,7 +199,9 @@ class ScoreViewModelNew @Inject constructor(
         val controls = core.controls
         val aggregated = aggregateExams(records)
         val idByName = subjects.associate { it.name to it.id }
+        val nameById = subjects.associate { it.id to it.name }
         val nameToColor = subjects.associate { it.name to Color(it.color) }
+        val filter = controls.filter
 
         // 各科得分率：取该科最近一次成绩（records 未保证顺序，显式取日期最大者）
         val subjectRates = (Constants.REQUIRED_SUBJECT_NAMES + selectedSubjects).map { name ->
@@ -186,18 +229,46 @@ class ScoreViewModelNew @Inject constructor(
             latest = subjectRecords.lastOrNull()?.score?.toInt(),
         )
 
-        // 总分趋势：按 range 从真实考试序列截取（正序）
-        val ascending = aggregated.asReversed()
+        // 筛选：按时间范围 + 科目过滤考试；删除「较上次」旧口径先算好（基于完整时间序列）
+        val cutoff = when (filter.timeRange) {
+            FilterTimeRange.All -> null
+            FilterTimeRange.Recent1M -> LocalDate.now().minusMonths(1)
+            FilterTimeRange.Recent3M -> LocalDate.now().minusMonths(3)
+            FilterTimeRange.Recent6M -> LocalDate.now().minusMonths(6)
+        }
+        val deltaByName = aggregated.mapIndexed { index, exam ->
+            exam.name to aggregated.getOrNull(index + 1)?.let { exam.totalScore - it.totalScore }
+        }.toMap()
+        val filtered = aggregated.filter { exam ->
+            val date = exam.date.toLocalDate()
+            (cutoff == null || !date.isBefore(cutoff)) &&
+                (filter.subject == null || exam.records.any { nameById[it.subjectId] == filter.subject })
+        }
+
+        // 总分趋势：按 range 从筛选后的真实考试序列截取（正序）；有科目筛选时改画该科目趋势
+        val ascending = filtered.asReversed()
         val ranged = when (controls.range) {
             TrendRange.Recent6 -> ascending.takeLast(6)
             TrendRange.Recent10 -> ascending.takeLast(10)
             TrendRange.All -> ascending
         }
-        val trendPoints = ranged.map { TrendPoint(monthLabel(it.date), it.totalScore) }
+        val trendPoints = if (filter.subject == null) {
+            ranged.map { TrendPoint(monthLabel(it.date), it.totalScore) }
+        } else {
+            val subjectId = idByName[filter.subject]
+            ranged.map { exam ->
+                val score = exam.records.firstOrNull { it.subjectId == subjectId }?.score?.toInt() ?: 0
+                TrendPoint(monthLabel(exam.date), score)
+            }
+        }
 
-        // 历史记录：聚合 -> 计算与上一次考试的差值（aggregated 为日期倒序）
-        val history = aggregated.mapIndexed { index, exam ->
-            val previous = aggregated.getOrNull(index + 1)
+        // 历史记录：在筛选后的考试上排序；「较上次」沿用完整序列的差值
+        val sortedExams = when (filter.sort) {
+            FilterSort.TimeDesc -> filtered
+            FilterSort.TotalDesc -> filtered.sortedByDescending { it.totalScore }
+            FilterSort.TotalAsc -> filtered.sortedBy { it.totalScore }
+        }
+        val history = sortedExams.map { exam ->
             val rank = rankRecordFor(exams, exam.name)
             ExamHistoryItem(
                 id = examNameToId(exam.name),
@@ -205,7 +276,7 @@ class ScoreViewModelNew @Inject constructor(
                 date = exam.date.toLocalDate(),
                 totalScore = exam.totalScore,
                 fullScore = exam.fullScore,
-                deltaFromLast = previous?.let { exam.totalScore - it.totalScore },
+                deltaFromLast = deltaByName[exam.name],
                 classRank = rank?.classRank,
                 gradeRank = rank?.gradeRank,
             )
@@ -236,6 +307,9 @@ class ScoreViewModelNew @Inject constructor(
             subjectRates = subjectRates,
             subjectTrend = subjectTrend,
             historyGroups = groupByMonth(history),
+            filter = filter,
+            trendTitle = filter.subject?.let { "${it}趋势" } ?: "总分趋势",
+            filterSubjects = Constants.REQUIRED_SUBJECT_NAMES + selectedSubjects,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -253,6 +327,10 @@ class ScoreViewModelNew @Inject constructor(
 
     fun setSelectedSubject(subject: String) {
         _selectedSubject.value = subject
+    }
+
+    fun setFilter(filter: ScoreFilterState) {
+        _filter.value = filter
     }
 
     /**

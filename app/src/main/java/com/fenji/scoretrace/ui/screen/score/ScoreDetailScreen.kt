@@ -32,16 +32,21 @@ import com.fenji.scoretrace.ui.component.score.ExamOverviewCard
 import com.fenji.scoretrace.ui.component.score.ScoreDistributionCard
 import com.fenji.scoretrace.ui.component.score.SubjectDetailList
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.AppToast
 
 /**
  * 成绩详情页：顶部栏固定，内容区可滚动。
  *
  * 本页为全屏页，[com.fenji.scoretrace.ui.navigation.AppNavHost] 在该路由隐藏底部导航栏；
  * 顶部状态栏内边距由 Scaffold 统一处理，底部操作区自行避让手势条。
+ * 编辑/删除统一放在底部操作区（顶部不再放重复入口）。
  */
 @Composable
 fun ScoreDetailScreen(
+    examId: Long,
     onBack: () -> Unit,
+    onAiAnalyze: (String) -> Unit = {},
+    onEdit: (Long) -> Unit = {},
     viewModel: ScoreDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -52,11 +57,7 @@ fun ScoreDetailScreen(
         color = ScoreTraceColors.PageBackgroundLight,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            DetailTopBar(
-                onBack = onBack,
-                onEdit = { /* TODO: 跳转到编辑页 */ },
-                onDelete = { showDeleteConfirm = true },
-            )
+            DetailTopBar(onBack = onBack)
 
             when {
                 state.isLoading -> LoadingView(modifier = Modifier.weight(1f))
@@ -95,7 +96,7 @@ fun ScoreDetailScreen(
 
                     SubjectDetailList(
                         subjects = state.subjects,
-                        onWrongQuestionsClick = { /* TODO: 跳转到错题页 */ },
+                        onWrongQuestionsClick = { AppToast.info("错题本功能开发中") },
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
 
@@ -107,8 +108,8 @@ fun ScoreDetailScreen(
                     )
 
                     DetailActionButtons(
-                        onAiAnalyze = { /* TODO: 跳转到 AI 分析 */ },
-                        onEdit = { /* TODO: 跳转到编辑页 */ },
+                        onAiAnalyze = { onAiAnalyze(buildAnalysisPrompt(state)) },
+                        onEdit = { onEdit(examId) },
                         onDelete = { showDeleteConfirm = true },
                     )
 
@@ -139,4 +140,10 @@ fun ScoreDetailScreen(
             },
         )
     }
+}
+
+/** 拼「本次考试」的分析 prompt，交由 AI 助手作答。 */
+private fun buildAnalysisPrompt(state: ScoreDetailUiState): String {
+    val subjects = state.subjects.joinToString("、") { "${it.name} ${it.score}" }
+    return "请分析我这次考试的成绩：${state.examName}，总分 ${state.totalScore}/${state.fullScore}，各科分数：$subjects"
 }

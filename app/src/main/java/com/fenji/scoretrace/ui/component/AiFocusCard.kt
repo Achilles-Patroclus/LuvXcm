@@ -1,6 +1,7 @@
 package com.fenji.scoretrace.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,14 +29,16 @@ import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
 /**
- * 今日 AI 重点卡。
- * 左侧蓝色竖条 + 机器人图标；右侧标题 + 正文。
+ * 今日 AI 重点卡：左侧蓝色竖条 + 机器人图标；右侧标题行（含「换一换」）+ 正文 + 来源说明。
+ *
+ * 正文为纯文本（Markdown 标记已在 [com.fenji.scoretrace.ui.screen.home.HomeViewModel] 层剥离）。
  */
 @Composable
 fun AiFocusCard(
     title: String,
     content: String,
     modifier: Modifier = Modifier,
+    onRefresh: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -50,7 +53,7 @@ fun AiFocusCard(
                     cornerRadius = CornerRadius(2.dp.toPx()),
                 )
             }
-            .padding(start = 12.dp, top = 10.dp, end = 10.dp, bottom = 10.dp),
+            .padding(start = 12.dp, top = 10.dp, end = 12.dp, bottom = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // 机器人图标
@@ -70,14 +73,39 @@ fun AiFocusCard(
         }
         Spacer(modifier = Modifier.width(10.dp))
 
-        // 右侧：标题 + 正文
+        // 右侧：标题行 + 正文 + 来源说明
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ScoreTraceColors.BrandPrimary,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ScoreTraceColors.BrandPrimary,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (onRefresh != null) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onRefresh)
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_repeat),
+                            contentDescription = null,
+                            tint = ScoreTraceColors.TextSecondaryLight,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "换一换",
+                            fontSize = 11.sp,
+                            color = ScoreTraceColors.TextSecondaryLight,
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -86,6 +114,14 @@ fun AiFocusCard(
                 fontSize = 11.sp,
                 color = ScoreTraceColors.TextPrimaryLight,
                 lineHeight = 16.sp,
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "AI 分析基于你的最近成绩",
+                fontSize = 10.sp,
+                color = ScoreTraceColors.TextTertiaryLight,
             )
         }
     }

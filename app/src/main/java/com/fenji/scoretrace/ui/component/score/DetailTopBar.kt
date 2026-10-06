@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,12 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
-/** 成绩详情顶部栏：返回 + 标题 + 编辑 + 删除。 */
+/** 成绩详情顶部栏：返回 + 标题。编辑/删除统一放在页面底部的操作区。 */
 @Composable
 fun DetailTopBar(
     onBack: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -50,10 +46,6 @@ fun DetailTopBar(
             fontWeight = FontWeight.Bold,
             color = ScoreTraceColors.TextPrimaryLight,
         )
-        Spacer(modifier = Modifier.weight(1f))
-        CircleIconButton(Icons.Filled.Edit, "编辑", ScoreTraceColors.TextPrimaryLight, onEdit)
-        Spacer(modifier = Modifier.width(10.dp))
-        CircleIconButton(Icons.Filled.Delete, "删除", ScoreTraceColors.ErrorRed, onDelete)
     }
 }
 

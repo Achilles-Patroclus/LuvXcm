@@ -71,11 +71,13 @@ fun HomeScreen(
     onOpenScore: () -> Unit = {},
     onOpenTargetSchool: () -> Unit = {},
     onOpenAiScore: () -> Unit = {},
+    onOpenManualScore: () -> Unit = {},
     onOpenNotification: () -> Unit = {},
     onOpenTimer: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val onRefreshAiFocus: () -> Unit = viewModel::refreshAiFocus
     // 只持有 State 对象、不在函数体读值：倒计时每秒 tick 不会重组整页
     val countdown = viewModel.countdownState.collectAsStateWithLifecycle()
     val isPlaying by musicViewModel.isPlaying.collectAsStateWithLifecycle()
@@ -150,7 +152,9 @@ fun HomeScreen(
         onNotificationClick = onOpenNotification,
         onDetailClick = onOpenScore,
         onOpenAiScore = onOpenAiScore,
+        onOpenManualScore = onOpenManualScore,
         onOpenTimer = onOpenTimer,
+        onRefreshAiFocus = onRefreshAiFocus,
     )
 
     val targetSchoolToDelete = state.targetSchool
@@ -275,7 +279,9 @@ private fun HomeScreenContent(
     onNotificationClick: () -> Unit,
     onDetailClick: () -> Unit,
     onOpenAiScore: () -> Unit,
+    onOpenManualScore: () -> Unit,
     onOpenTimer: () -> Unit,
+    onRefreshAiFocus: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -347,6 +353,7 @@ private fun HomeScreenContent(
                 AiFocusCard(
                     title = "今日 AI 重点",
                     content = aiFocus,
+                    onRefresh = onRefreshAiFocus,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
 
@@ -363,6 +370,12 @@ private fun HomeScreenContent(
                 Spacer(modifier = Modifier.height(8.dp))
                 QuickActions(
                     actions = listOf(
+                        QuickAction(
+                            label = "手动录成绩",
+                            icon = painterResource(R.drawable.ic_text_fields),
+                            color = ScoreTraceColors.QuickActionOrange,
+                            onClick = onOpenManualScore,
+                        ),
                         QuickAction(
                             label = "AI录成绩",
                             icon = painterResource(R.drawable.ic_photo_camera),

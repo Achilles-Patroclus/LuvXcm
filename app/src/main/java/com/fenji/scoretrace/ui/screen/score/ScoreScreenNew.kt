@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import com.fenji.scoretrace.ui.component.score.AnalysisCard
 import com.fenji.scoretrace.ui.component.score.HistorySection
 import com.fenji.scoretrace.ui.component.score.LatestExamCard
 import com.fenji.scoretrace.ui.component.score.ScoreTopBar
+import com.fenji.scoretrace.ui.component.score.ScoreFilterSheet
 import com.fenji.scoretrace.ui.component.score.TotalTrendCard
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
@@ -46,13 +48,18 @@ fun ScoreScreenNew(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 待确认删除的考试；非空时弹二次确认
     var pendingDelete by remember { mutableStateOf<ExamHistoryItem?>(null) }
+    var showFilter by rememberSaveable { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = ScoreTraceColors.PageBackgroundLight,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            ScoreTopBar(onFilterClick = { /* TODO: 按考试/科目/时间筛选 */ })
+            ScoreTopBar(
+                onFilterClick = { showFilter = true },
+                filterActive = state.filter.activeCount > 0,
+                filterCount = state.filter.activeCount,
+            )
             AiHintBar(onClick = onOpenAi)
 
             when {
@@ -94,9 +101,10 @@ fun ScoreScreenNew(
 
                     TotalTrendCard(
                         points = state.trendPoints,
-                        targetScore = state.targetScore,
+                        targetScore = if (state.filter.subject == null) state.targetScore else null,
                         selectedRange = state.trendRange,
                         onRangeChange = viewModel::setTrendRange,
+                        title = state.trendTitle,
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
 
@@ -121,6 +129,18 @@ fun ScoreScreenNew(
                 }
             }
         }
+    }
+
+    if (showFilter) {
+        ScoreFilterSheet(
+            subjects = state.filterSubjects,
+            initial = state.filter,
+            onApply = {
+                viewModel.setFilter(it)
+                showFilter = false
+            },
+            onDismiss = { showFilter = false },
+        )
     }
 
     pendingDelete?.let { item ->

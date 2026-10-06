@@ -26,13 +26,14 @@ import com.fenji.scoretrace.ui.screen.score.TrendPoint
 import com.fenji.scoretrace.ui.screen.score.TrendRange
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 
-/** 总分趋势卡：时间范围切换 + 折线图 + 目标虚线 + 底部统计。 */
+/** 趋势卡：标题 + 时间范围切换 + 折线图 + 目标虚线 + 底部统计。 */
 @Composable
 fun TotalTrendCard(
     points: List<TrendPoint>,
     targetScore: Int?,
     selectedRange: TrendRange,
     onRangeChange: (TrendRange) -> Unit,
+    title: String = "总分趋势",
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -44,7 +45,7 @@ fun TotalTrendCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "总分趋势",
+                text = title,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = ScoreTraceColors.TextPrimaryLight,

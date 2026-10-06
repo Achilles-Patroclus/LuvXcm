@@ -73,6 +73,8 @@ fun AiScreen(
     loadConversationId: Long = -1L,
     newChatTick: Long = 0L,
     onCommandConsumed: () -> Unit = {},
+    pendingPrompt: String? = null,
+    onPromptConsumed: () -> Unit = {},
     viewModel: AiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -94,6 +96,13 @@ fun AiScreen(
         if (newChatTick > 0L) {
             viewModel.onNewChat()
             onCommandConsumed()
+        }
+    }
+    // 外部（如成绩详情「AI分析本次考试」）注入的问题：直接发起对话后消费
+    LaunchedEffect(pendingPrompt) {
+        if (!pendingPrompt.isNullOrBlank()) {
+            viewModel.sendMessage(pendingPrompt)
+            onPromptConsumed()
         }
     }
 
