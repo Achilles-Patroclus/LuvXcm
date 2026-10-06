@@ -61,3 +61,31 @@ $ADB -s "$SERIAL" shell input keyevent KEYCODE_ENTER    # 回车
 
 ## 输出规范
 操作命令 + 操作结果（成功/失败判定）+ 后续建议；涉及多步时给操作序列与每步截图路径。
+
+---
+
+## ⚠️ 收尾规范（强制）
+
+**每次 ADB 操作完成后，必须把焦点归还给 AiCode**，否则用户看到的是 ScoreTrace 界面，会误以为 AiCode 卡住了。
+
+### 标准收尾命令
+
+```bash
+export ANDROID_ADB_SERVER_PORT=5038
+ADB=/root/android/sdk/platform-tools/adb
+SERIAL="$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1):5555"
+AICODE_PKG="com.aicode"
+
+# 三重回退：显式启动 → monkey 启动 → 应用切换键
+$ADB -s "$SERIAL" shell am start -n "$AICODE_PKG/.MainActivity" 2>/dev/null \
+  || $ADB -s "$SERIAL" shell monkey -p "$AICODE_PKG" -c android.intent.category.LAUNCHER 1 \
+  || $ADB -s "$SERIAL" shell input keyevent KEYCODE_APP_SWITCH
+```
+
+### 例外情况
+
+**仅当用户明确要求**「停留在 ScoreTrace 看效果」「我要自己看界面」时，**跳过**此步骤。
+
+### 验证
+
+执行完成后，手机屏幕应显示 AiCode 对话界面，而非 ScoreTrace。

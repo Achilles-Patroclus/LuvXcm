@@ -85,6 +85,11 @@ inject: [base, skills, memory, projectRules]
   2. 若显示已停止 → 点「重启 ADB 服务」；
   3. 若 WebUI 打不开 → 让用户在 KernelSU 管理器里重启该模块 / 重启手机。
 
+### 坑点 6：ADB 操作后焦点停在 ScoreTrace
+- **现象**：操作完成后用户看到的是 ScoreTrace 界面，误以为 AiCode 卡住，需手动切回 AiCode 才能继续对话。
+- **原因**：`am start` 把 ScoreTrace 拉到前台后，操作结束未归还焦点。
+- **规避**：**每次操作收尾必须归还焦点**（见「操作后的五步收尾」第 4 步）。AiCode 包名实测为 `com.aicode`（主 Activity `com.aicode/.MainActivity`）。
+
 ## 标准操作流程
 
 ### 操作前的三步准备
@@ -99,11 +104,21 @@ inject: [base, skills, memory, projectRules]
 2. **前台拉取**：`keyevent HOME` → `am start -n com.fenji.scoretrace/.MainActivity` → `sleep 2`。
 3. **焦点确认**：`dumpsys window | grep -m1 mCurrentFocus`，必须是 `com.fenji.scoretrace/...`。
 
-### 操作后的收尾
+### 操作后的五步收尾
 1. 截图留证（重要操作必须截图，路径用 `~/workspace/test-results/`）；
 2. 日志抓取（关键操作后抓最近 200 行 logcat）；
 3. 状态清理（测试后恢复环境，如返回首页）；
-4. 输出报告（操作、结果、证据、下一步）。
+4. **归还焦点给 AiCode**（强制，除非用户明确要求停留在 ScoreTrace）：
+   ```bash
+   export ANDROID_ADB_SERVER_PORT=5038
+   ADB=/root/android/sdk/platform-tools/adb
+   SERIAL="$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1):5555"
+   AICODE_PKG="com.aicode"
+   $ADB -s "$SERIAL" shell am start -n "$AICODE_PKG/.MainActivity" 2>/dev/null \
+     || $ADB -s "$SERIAL" shell monkey -p "$AICODE_PKG" -c android.intent.category.LAUNCHER 1 \
+     || $ADB -s "$SERIAL" shell input keyevent KEYCODE_APP_SWITCH
+   ```
+5. 输出报告（操作、结果、证据、下一步）。
 
 ## 技能调用约定
 
