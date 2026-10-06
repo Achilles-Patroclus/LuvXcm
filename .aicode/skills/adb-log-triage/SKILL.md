@@ -93,3 +93,37 @@ $ADB -s "$SERIAL" shell am start -n "$AICODE_PKG/.MainActivity" 2>/dev/null \
 ### 验证
 
 执行完成后，手机屏幕应显示 AiCode 对话界面，而非 ScoreTrace。
+
+---
+
+## 📁 ADB 文件路径规范（强制，2026-10-06 v5.12 建立）
+
+**所有 ADB 产物必须放在 `/sdcard/ADB/` 下，不得污染 `/sdcard/` 根目录。**
+
+- 截图 → `/sdcard/ADB/screenshots/`
+- uiautomator dump → `/sdcard/ADB/dumps/`（用完即删）
+- logcat → `/sdcard/ADB/logs/`
+- 临时文件 → `/sdcard/ADB/tmp/`（操作后清空）
+
+**🚨 绝对禁止**：
+- 不得删除 `/sdcard/` 根目录下的用户文件/文件夹
+- 不得对根目录使用通配符删除（如 `rm /sdcard/*.xml`）
+- 不得删除 UUID 命名的文件（可能是用户资产）
+- 不确定文件归属时，**保留不删**
+
+**操作示例**：
+```bash
+export ANDROID_ADB_SERVER_PORT=5038
+ADB=/root/android/sdk/platform-tools/adb
+SERIAL="$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1):5555"
+$ADB -s "$SERIAL" shell "mkdir -p /sdcard/ADB/screenshots /sdcard/ADB/dumps /sdcard/ADB/logs /sdcard/ADB/tmp"
+$ADB -s "$SERIAL" shell screencap -p /sdcard/ADB/screenshots/home.png
+$ADB -s "$SERIAL" pull /sdcard/ADB/screenshots/home.png ~/workspace/test-results/
+```
+
+**操作收尾**：拉取后若本地已保存，删除设备端 dump 临时文件，并清空 tmp：
+```bash
+$ADB -s "$SERIAL" shell "rm -f /sdcard/ADB/dumps/window_dump.xml"
+$ADB -s "$SERIAL" shell "rm -rf /sdcard/ADB/tmp/*"
+```
+（`/sdcard/ADB/*` 是 ADB 自己的目录，可以清理；**`/sdcard/` 根目录严禁通配符**。）

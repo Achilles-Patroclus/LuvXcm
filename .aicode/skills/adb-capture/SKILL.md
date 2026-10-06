@@ -32,15 +32,16 @@ $ADB -s "$SERIAL" shell dumpsys window | grep -m1 mCurrentFocus   # 必须是 co
 
 ```bash
 mkdir -p ~/workspace/test-results
+$ADB -s "$SERIAL" shell "mkdir -p /sdcard/ADB/screenshots /sdcard/ADB/dumps"
 
 # 截图
 TS=$(date +%s)
-$ADB -s "$SERIAL" shell screencap -p /sdcard/st_$TS.png
-$ADB -s "$SERIAL" pull /sdcard/st_$TS.png ~/workspace/test-results/
+$ADB -s "$SERIAL" shell screencap -p /sdcard/ADB/screenshots/st_$TS.png
+$ADB -s "$SERIAL" pull /sdcard/ADB/screenshots/st_$TS.png ~/workspace/test-results/
 
 # UI dump（拿元素坐标）
-$ADB -s "$SERIAL" shell uiautomator dump /sdcard/window_dump.xml
-$ADB -s "$SERIAL" pull /sdcard/window_dump.xml ~/workspace/test-results/
+$ADB -s "$SERIAL" shell uiautomator dump /sdcard/ADB/dumps/window_dump.xml
+$ADB -s "$SERIAL" pull /sdcard/ADB/dumps/window_dump.xml ~/workspace/test-results/
 ```
 
 ## UI dump 解析技巧
@@ -64,7 +65,7 @@ ScoreTrace 首页有持续动画（倒计时呼吸、音乐音柱、无限过渡
 ERROR: could not get idle state.
 ```
 
-此时该命令**退出码仍为 0**，但不会生成 `/sdcard/window_dump.xml`，随后的 pull 会报 `No such file or directory`。
+此时该命令**退出码仍为 0**，但不会生成 `/sdcard/ADB/dumps/window_dump.xml`，随后的 pull 会报 `No such file or directory`。
 
 绕过办法：临时把动画缩放设为 0，dump 完再恢复（**实测有效**）：
 
@@ -76,8 +77,8 @@ $ADB -s "$SERIAL" shell settings put global window_animation_scale 0
 $ADB -s "$SERIAL" shell settings put global transition_animation_scale 0
 $ADB -s "$SERIAL" shell settings put global animator_duration_scale 0
 sleep 1
-$ADB -s "$SERIAL" shell uiautomator dump /sdcard/window_dump.xml
-$ADB -s "$SERIAL" pull /sdcard/window_dump.xml ~/workspace/test-results/
+$ADB -s "$SERIAL" shell uiautomator dump /sdcard/ADB/dumps/window_dump.xml
+$ADB -s "$SERIAL" pull /sdcard/ADB/dumps/window_dump.xml ~/workspace/test-results/
 # 恢复（务必执行，别把用户手机动画关了）
 $ADB -s "$SERIAL" shell settings put global window_animation_scale 1.0
 $ADB -s "$SERIAL" shell settings put global transition_animation_scale 1.0
@@ -120,3 +121,37 @@ $ADB -s "$SERIAL" shell am start -n "$AICODE_PKG/.MainActivity" 2>/dev/null \
 ### 验证
 
 执行完成后，手机屏幕应显示 AiCode 对话界面，而非 ScoreTrace。
+
+---
+
+## 📁 ADB 文件路径规范（强制，2026-10-06 v5.12 建立）
+
+**所有 ADB 产物必须放在 `/sdcard/ADB/` 下，不得污染 `/sdcard/` 根目录。**
+
+- 截图 → `/sdcard/ADB/screenshots/`
+- uiautomator dump → `/sdcard/ADB/dumps/`（用完即删）
+- logcat → `/sdcard/ADB/logs/`
+- 临时文件 → `/sdcard/ADB/tmp/`（操作后清空）
+
+**🚨 绝对禁止**：
+- 不得删除 `/sdcard/` 根目录下的用户文件/文件夹
+- 不得对根目录使用通配符删除（如 `rm /sdcard/*.xml`）
+- 不得删除 UUID 命名的文件（可能是用户资产）
+- 不确定文件归属时，**保留不删**
+
+**操作示例**：
+```bash
+export ANDROID_ADB_SERVER_PORT=5038
+ADB=/root/android/sdk/platform-tools/adb
+SERIAL="$(hostname -I | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1):5555"
+$ADB -s "$SERIAL" shell "mkdir -p /sdcard/ADB/screenshots /sdcard/ADB/dumps /sdcard/ADB/logs /sdcard/ADB/tmp"
+$ADB -s "$SERIAL" shell screencap -p /sdcard/ADB/screenshots/home.png
+$ADB -s "$SERIAL" pull /sdcard/ADB/screenshots/home.png ~/workspace/test-results/
+```
+
+**操作收尾**：拉取后若本地已保存，删除设备端 dump 临时文件，并清空 tmp：
+```bash
+$ADB -s "$SERIAL" shell "rm -f /sdcard/ADB/dumps/window_dump.xml"
+$ADB -s "$SERIAL" shell "rm -rf /sdcard/ADB/tmp/*"
+```
+（`/sdcard/ADB/*` 是 ADB 自己的目录，可以清理；**`/sdcard/` 根目录严禁通配符**。）

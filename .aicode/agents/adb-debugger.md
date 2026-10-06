@@ -90,6 +90,39 @@ inject: [base, skills, memory, projectRules]
 - **原因**：`am start` 把 ScoreTrace 拉到前台后，操作结束未归还焦点。
 - **规避**：**每次操作收尾必须归还焦点**（见「操作后的五步收尾」第 4 步）。AiCode 包名实测为 `com.aicode`（主 Activity `com.aicode/.MainActivity`）。
 
+## 📁 ADB 文件管理规范（强制）
+
+### 🚨 绝对铁律
+1. **不删除任何用户文件/文件夹**（图片、文档、应用目录一律不动）；
+2. **不删除任何 UUID 命名的文件**（可能是用户资产）；
+3. **不使用通配符 rm**（如 `rm /sdcard/*.xml` 严禁）；
+4. **不确定归属的文件，一律保留**。
+
+### 目录约定
+- **根目录**：`/sdcard/ADB/`（所有 ADB 产物统一放这里，禁止污染 `/sdcard/` 根目录）
+- **截图**：`/sdcard/ADB/screenshots/`
+- **dump 产物**：`/sdcard/ADB/dumps/`（用后可删）
+- **日志**：`/sdcard/ADB/logs/`
+- **临时文件**：`/sdcard/ADB/tmp/`（操作后清空）
+
+### 操作流程
+1. **截图/dump 前先建目录**：
+   ```bash
+   $ADB -s "$SERIAL" shell "mkdir -p /sdcard/ADB/screenshots /sdcard/ADB/dumps /sdcard/ADB/logs /sdcard/ADB/tmp"
+   ```
+2. **截图**：`$ADB -s "$SERIAL" shell screencap -p /sdcard/ADB/screenshots/<name>.png`
+3. **dump**：`$ADB -s "$SERIAL" shell uiautomator dump /sdcard/ADB/dumps/<name>.xml`
+4. **拉取后**：如本地已保存，**立即删除设备上的临时文件**：
+   ```bash
+   $ADB -s "$SERIAL" shell "rm -f /sdcard/ADB/dumps/<name>.xml"
+   ```
+5. **操作完成收尾**：清空临时目录 `$ADB -s "$SERIAL" shell "rm -rf /sdcard/ADB/tmp/*"`（见「操作后的六步收尾」第 4 步），再归还焦点给 AiCode（第 5 步）。
+
+### 例外
+- 用户明确要求保留截图时，放 `/sdcard/ADB/screenshots/` 不删除；
+- 其他临时文件一律删除。
+- `/sdcard/ADB/` 是 ADB 自己的目录，可整目录清理；**`/sdcard/` 根目录严禁通配符**。
+
 ## 标准操作流程
 
 ### 操作前的三步准备
@@ -104,11 +137,15 @@ inject: [base, skills, memory, projectRules]
 2. **前台拉取**：`keyevent HOME` → `am start -n com.fenji.scoretrace/.MainActivity` → `sleep 2`。
 3. **焦点确认**：`dumpsys window | grep -m1 mCurrentFocus`，必须是 `com.fenji.scoretrace/...`。
 
-### 操作后的五步收尾
-1. 截图留证（重要操作必须截图，路径用 `~/workspace/test-results/`）；
+### 操作后的六步收尾
+1. 截图留证（截图先存设备端 `/sdcard/ADB/screenshots/`，再拉到 `~/workspace/test-results/`）；
 2. 日志抓取（关键操作后抓最近 200 行 logcat）；
 3. 状态清理（测试后恢复环境，如返回首页）；
-4. **归还焦点给 AiCode**（强制，除非用户明确要求停留在 ScoreTrace）：
+4. **清理设备端临时文件**（已拉取的 dump/临时文件删除，并清空 `/sdcard/ADB/tmp/`；截图按需保留）：
+   ```bash
+   $ADB -s "$SERIAL" shell "rm -rf /sdcard/ADB/tmp/*"
+   ```
+5. **归还焦点给 AiCode**（强制，除非用户明确要求停留在 ScoreTrace）：
    ```bash
    export ANDROID_ADB_SERVER_PORT=5038
    ADB=/root/android/sdk/platform-tools/adb
@@ -118,7 +155,7 @@ inject: [base, skills, memory, projectRules]
      || $ADB -s "$SERIAL" shell monkey -p "$AICODE_PKG" -c android.intent.category.LAUNCHER 1 \
      || $ADB -s "$SERIAL" shell input keyevent KEYCODE_APP_SWITCH
    ```
-5. 输出报告（操作、结果、证据、下一步）。
+6. 输出报告（操作、结果、证据、下一步）。
 
 ## 技能调用约定
 
