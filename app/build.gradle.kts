@@ -15,7 +15,6 @@ android {
 
     defaultConfig {
         applicationId = "com.fenji.scoretrace"
-        // miuix-blur / backdrop 依赖 RuntimeShader，库自身声明 minSdk 33
         minSdk = 33
         targetSdk = 37
         versionCode = 1
@@ -127,9 +126,6 @@ dependencies {
 
     // 图片加载（院校校徽）
     implementation(libs.coil.compose)
-
-    // 液体玻璃：KernelSU 同款悬浮底栏（miuix-blur）
-    implementation(libs.miuix.blur)
 
     // 测试
     testImplementation(libs.junit)

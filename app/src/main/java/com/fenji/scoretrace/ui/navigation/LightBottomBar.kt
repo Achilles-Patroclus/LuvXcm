@@ -34,7 +34,7 @@ data class BottomBarTab(
 )
 
 /**
- * 普通浅色底栏（替代液态玻璃 [FloatingBottomBar]）。
+ * 普通浅色底栏。
  * 选中项：浅蓝圆角背景 + 品牌蓝图标文字；未选中：中性灰。
  *
  * 顶部分隔线与内容区分开；底栏自身用 [navigationBarsPadding] 避让系统手势条。

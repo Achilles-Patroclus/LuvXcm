@@ -257,7 +257,6 @@ private val OPEN_SOURCE_LIBRARIES = listOf(
     OpenSourceLibrary("Kotlin Coroutines", "Apache-2.0"),
     OpenSourceLibrary("Coil", "Apache-2.0"),
     OpenSourceLibrary("AndroidX Media3", "Apache-2.0"),
-    OpenSourceLibrary("miuix-blur (yukonga)", "Apache-2.0"),
 )
 
 /** 开源许可弹层：LazyColumn 展示第三方库与许可证。 */

@@ -17,7 +17,6 @@ okhttp = "4.12.0"
 gson = "2.11.0"
 coroutines = "1.11.0"
 coil = "2.7.0"
-miuix = "0.9.3"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
 espressoCore = "3.6.1"
@@ -69,9 +68,6 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 
 # 图片加载（院校校徽，含内存/磁盘缓存）
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
-
-# 液体玻璃（KernelSU 同款：miuix-blur 提供模糊 / 高光 / 重力传感器；折射与色散由本地 vendored 助手实现）
-miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur", version.ref = "miuix" }
 
 # 测试
 junit = { module = "junit:junit", version.ref = "junit" }
