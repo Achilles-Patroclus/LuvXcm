@@ -54,6 +54,7 @@ import com.fenji.scoretrace.R
 import com.fenji.scoretrace.data.player.TrackInfo
 import com.fenji.scoretrace.ui.music.RepeatMode
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import com.fenji.scoretrace.util.AppToast
 import kotlin.math.roundToInt
 
 /**
@@ -86,6 +87,9 @@ fun MusicFloatingPanel(
     onToggleFavorite: () -> Unit,
     onDismiss: () -> Unit,
     onOpenPlaylist: () -> Unit = {},
+    /** 上一首/下一首切歌后要提示的歌名，由调用方按播放列表计算 */
+    previousTitle: String = "",
+    nextTitle: String = "",
     modifier: Modifier = Modifier,
 ) {
     // 向下拖拽的位移（仅记录正值），松手后回弹或关闭
@@ -195,13 +199,24 @@ fun MusicFloatingPanel(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        MusicTag(icon = R.drawable.ic_lyrics, text = "歌词")
-                        MusicTag(icon = R.drawable.ic_spatial_audio, text = "空间音频")
-                        MusicTag(icon = null, text = "32k")
+                        MusicTag(icon = R.drawable.ic_lyrics, text = "歌词") {
+                            AppToast.info("歌词功能即将支持")
+                        }
+                        MusicTag(icon = R.drawable.ic_spatial_audio, text = "空间音频") {
+                            AppToast.info("空间音频功能即将支持")
+                        }
+                        MusicTag(icon = null, text = "32k") {
+                            AppToast.info("音质设置即将支持")
+                        }
                     }
                 }
 
-                IconButton(onClick = onToggleFavorite) {
+                IconButton(
+                    onClick = {
+                        AppToast.info(if (isFavorite) "已取消收藏" else "已收藏")
+                        onToggleFavorite()
+                    },
+                ) {
                     Icon(
                         painter = painterResource(
                             if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border,
@@ -237,7 +252,9 @@ fun MusicFloatingPanel(
                                 },
                                 onDragEnd = {
                                     if (dragValue >= 0f && duration > 0L) {
-                                        onSeekTo((dragValue * duration).toLong())
+                                        val target = (dragValue * duration).toLong()
+                                        onSeekTo(target)
+                                        AppToast.info("已跳转到 ${formatTime(target)}")
                                     }
                                     dragValue = -1f
                                 },
@@ -301,7 +318,12 @@ fun MusicFloatingPanel(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onToggleShuffle) {
+                IconButton(
+                    onClick = {
+                        AppToast.info(if (shuffleEnabled) "已关闭随机播放" else "已开启随机播放")
+                        onToggleShuffle()
+                    },
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_shuffle),
                         contentDescription = "随机播放",
@@ -310,7 +332,12 @@ fun MusicFloatingPanel(
                     )
                 }
 
-                IconButton(onClick = onPrevious) {
+                IconButton(
+                    onClick = {
+                        AppToast.info("正在播放：${previousTitle.ifBlank { track.title }}")
+                        onPrevious()
+                    },
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_skip_previous),
                         contentDescription = "上一首",
@@ -326,7 +353,10 @@ fun MusicFloatingPanel(
                         .background(
                             Brush.horizontalGradient(listOf(Color(0xFF3B82F6), Color(0xFF06B6D4))),
                         )
-                        .clickable(onClick = onTogglePlayPause),
+                        .clickable {
+                            AppToast.info(if (isPlaying) "已暂停" else "播放中")
+                            onTogglePlayPause()
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -339,7 +369,12 @@ fun MusicFloatingPanel(
                     )
                 }
 
-                IconButton(onClick = onNext) {
+                IconButton(
+                    onClick = {
+                        AppToast.info("正在播放：${nextTitle.ifBlank { track.title }}")
+                        onNext()
+                    },
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_skip_next),
                         contentDescription = "下一首",
@@ -348,7 +383,18 @@ fun MusicFloatingPanel(
                     )
                 }
 
-                IconButton(onClick = onToggleRepeat) {
+                IconButton(
+                    onClick = {
+                        AppToast.info(
+                            when (repeatMode) {
+                                RepeatMode.OFF -> "循环模式：列表循环"
+                                RepeatMode.ALL -> "循环模式：单曲循环"
+                                RepeatMode.ONE -> "已关闭循环"
+                            },
+                        )
+                        onToggleRepeat()
+                    },
+                ) {
                     val repeatIcon = when (repeatMode) {
                         RepeatMode.OFF -> R.drawable.ic_repeat
                         RepeatMode.ALL -> R.drawable.ic_repeat
@@ -368,11 +414,12 @@ fun MusicFloatingPanel(
 
 /** 标签行里的小胶囊：半透明白底 +（可选）小图标 + 文字。 */
 @Composable
-private fun MusicTag(@DrawableRes icon: Int?, text: String) {
+private fun MusicTag(@DrawableRes icon: Int?, text: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
             .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

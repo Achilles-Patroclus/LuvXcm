@@ -111,6 +111,10 @@ fun HomeScreen(
         val repeatMode by musicViewModel.repeatMode.collectAsStateWithLifecycle()
         val shuffleMode by musicViewModel.shuffleMode.collectAsStateWithLifecycle()
         val favorites by musicViewModel.favorites.collectAsStateWithLifecycle()
+        // 上一首/下一首的提示歌名：按播放列表环绕取相邻项（随机模式下可能与实际播放项略有出入）
+        val trackCount = playlist.size
+        val previousTitle = if (trackCount > 0) playlist[(currentTrackIndex - 1 + trackCount) % trackCount].title else ""
+        val nextTitle = if (trackCount > 0) playlist[(currentTrackIndex + 1) % trackCount].title else ""
 
         MusicFloatingPanel(
             track = track,
@@ -129,6 +133,8 @@ fun HomeScreen(
             onToggleFavorite = { musicViewModel.toggleFavorite(track.id) },
             onDismiss = { onMusicPanelChange(false) },
             onOpenPlaylist = { showPlaylist = true },
+            previousTitle = previousTitle,
+            nextTitle = nextTitle,
         )
     }
 
