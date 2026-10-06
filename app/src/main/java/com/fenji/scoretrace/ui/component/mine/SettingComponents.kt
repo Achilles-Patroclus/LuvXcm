@@ -187,63 +187,6 @@ fun SettingSwitchItem(
     }
 }
 
-/** 复制项：图标 + 标题 + 副标题 + 值 + 复制按钮。 */
-@Composable
-fun SettingCopyItem(
-    icon: Painter,
-    iconBgColor: Color,
-    title: String,
-    subtitle: String,
-    value: String,
-    onCopy: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SettingIcon(icon = icon, bgColor = iconBgColor)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = ScoreTraceColors.TextPrimaryLight,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 13.sp,
-                color = ScoreTraceColors.TextSecondaryLight,
-            )
-        }
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            color = ScoreTraceColors.TextSecondaryLight,
-            modifier = Modifier.padding(end = 8.dp),
-        )
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(ScoreTraceColors.PageBackgroundLight)
-                .clickable(onClick = onCopy),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_content_copy),
-                contentDescription = "复制",
-                tint = ScoreTraceColors.TextSecondaryLight,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
 /** 危险项（红色标题，如「清除全部数据」）。 */
 @Composable
 fun SettingDangerItem(

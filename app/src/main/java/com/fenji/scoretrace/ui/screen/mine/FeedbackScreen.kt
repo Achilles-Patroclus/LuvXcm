@@ -49,8 +49,6 @@ private val FEEDBACK_TYPES = listOf("功能建议", "Bug 反馈", "内容错误"
 
 /**
  * 意见反馈页（界面完整、提交暂为占位）。
- *
- * 提交逻辑待接入 FeedbackRepository（见 data/repository/FeedbackRepository.kt 的 TODO）。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -153,7 +151,6 @@ fun FeedbackScreen(onBack: () -> Unit) {
                         ),
                     )
                     .clickable {
-                        // TODO: 接入 FeedbackRepository.submit(...) 后改为真实提交
                         AppToast.info("感谢反馈，功能即将上线")
                     },
                 contentAlignment = Alignment.Center,

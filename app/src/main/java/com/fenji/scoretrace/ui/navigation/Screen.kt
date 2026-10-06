@@ -7,9 +7,6 @@ sealed class Screen(val route: String) {
     data object Score : Screen("score")
     data object Mine : Screen("mine")
 
-    /** 设置：不在底部 Tab 中，后续由「我的」页进入 */
-    data object Settings : Screen("settings")
-
     /** 目标院校选择/编辑：从首页目标院校卡或「我的」页进入，全屏页 */
     data object TargetSchool : Screen("target_school")
 

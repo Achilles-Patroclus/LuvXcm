@@ -74,7 +74,6 @@ import com.fenji.scoretrace.ui.screen.score.AiScoreInputScreen
 import com.fenji.scoretrace.ui.screen.score.ManualScoreInputScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreDetailScreen
 import com.fenji.scoretrace.ui.screen.score.ScoreScreenNew
-import com.fenji.scoretrace.ui.screen.settings.SettingsScreen
 import com.fenji.scoretrace.ui.screen.subject.SubjectConfigScreen
 import com.fenji.scoretrace.ui.screen.timer.StudyTimerScreen
 import com.fenji.scoretrace.util.AppToast
@@ -356,7 +355,6 @@ fun AppNavHost(
             composable(Screen.Feedback.route) {
                 FeedbackScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.Settings.route) { SettingsScreen() }
         }
     }
 }
