@@ -2,13 +2,14 @@ package com.fenji.scoretrace.ui.navigation
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,7 +65,7 @@ import com.fenji.scoretrace.util.AppToast
  * 顶层导航。音乐播放器的 ViewModel 在这一层获取——它的 ViewModelStoreOwner 是 Activity，
  * 因此切底部 Tab 不会把它销毁，音乐也就不会被中断。
  *
- * 过渡动画：底部 Tab 之间用淡入淡出（[tabEnter]/[tabExit]），二级页面用水平滑动（NavHost 默认）。
+ * 过渡动画：底部 Tab 之间用淡入淡出（[tabEnter]/[tabExit]），二级页面用视差水平滑动（见下方 NavHost 默认动画）。
  * 轻提示由 [com.fenji.scoretrace.util.AppToast] 全局队列管理，宿主 `AppToastHost` 挂在 MainActivity。
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -146,29 +147,31 @@ fun AppNavHost(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+            // 进入二级页：新页从右整幅滑入，当前页只向左退 1/3 并淡出（视差，显得更顺滑）
             enterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                ) + fadeIn(animationSpec = tween(280))
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + fadeIn(animationSpec = tween(300))
             },
             exitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Left,
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                ) + fadeOut(animationSpec = tween(280))
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + fadeOut(animationSpec = tween(300))
             },
+            // 返回：上一页从左侧 1/3 处滑回，当前页整幅向右滑出
             popEnterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                ) + fadeIn(animationSpec = tween(280))
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + fadeIn(animationSpec = tween(300))
             },
             popExitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                ) + fadeOut(animationSpec = tween(280))
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + fadeOut(animationSpec = tween(300))
             },
         ) {
             // 四个底部 Tab 用淡入淡出，避免水平滑动在平级切换时的突兀感
