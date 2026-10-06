@@ -194,14 +194,6 @@ fun MineScreen(
                     checked = state.autoPlayMusic,
                     onCheckedChange = viewModel::setAutoPlayMusic,
                 )
-                SettingDivider()
-                SettingNavigateItem(
-                    icon = painterResource(R.drawable.ic_text_fields),
-                    iconBgColor = ScoreTraceColors.WarningOrange,
-                    title = "字体大小",
-                    value = state.fontSize,
-                    onClick = { /* TODO 字体大小选择 */ },
-                )
             }
 
             // ── 数据

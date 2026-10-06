@@ -56,8 +56,6 @@ data class MineUiState(
     /** 主题模式：light / dark / system */
     val themeMode: String = "system",
     val autoPlayMusic: Boolean = true,
-    /** 字体大小档位（占位，后续全局生效） */
-    val fontSize: String = "标准",
     /** 当前选科（3+1+2：1 门首选 + 2 门再选），来自 UserPreferences */
     val selectedSubjects: List<String> = emptyList(),
     /** 所在省份（省级行政区名），来自 UserPreferences */
