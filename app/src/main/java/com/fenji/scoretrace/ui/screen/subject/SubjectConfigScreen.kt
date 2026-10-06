@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +43,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -197,7 +200,8 @@ private fun RequiredSubjectCard(name: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(ScoreTraceColors.BrandPrimary.copy(alpha = 0.08f))
+            .border(1.5.dp, ScoreTraceColors.BrandPrimary, RoundedCornerShape(14.dp))
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -212,8 +216,11 @@ private fun PrimarySection(selected: String?, onSelect: (String) -> Unit) {
     Column {
         SectionHeaderRow(title = "首选科目", hint = "二选一 · 原始分计入")
         Spacer(modifier = Modifier.height(10.dp))
+        // IntrinsicSize.Min + fillMaxHeight：两卡取较高的内禀高度，消出描述文案长度不一导致的卡高差
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Constants.PRIMARY_SUBJECT_NAMES.forEach { name ->
@@ -221,7 +228,9 @@ private fun PrimarySection(selected: String?, onSelect: (String) -> Unit) {
                     name = name,
                     selected = name == selected,
                     onClick = { onSelect(name) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                 )
             }
         }
@@ -271,6 +280,8 @@ private fun PrimaryCard(
                 fontSize = 11.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
                 lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
