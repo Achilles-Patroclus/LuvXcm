@@ -39,6 +39,12 @@ sealed class Screen(val route: String) {
     /** AI 历史对话：从 AI 助手页进入，全屏页 */
     data object AiHistory : Screen("ai_history")
 
+    /** 关于 ScoreTrace：从「我的」页进入，全屏页 */
+    data object About : Screen("about")
+
+    /** 意见反馈：从「我的」页进入，全屏页 */
+    data object Feedback : Screen("feedback")
+
     /** 成绩详情：从成绩页历史记录进入，携带考试 ID */
     data class ScoreDetail(val examId: Long) : Screen(ROUTE) {
         companion object {

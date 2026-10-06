@@ -62,26 +62,40 @@ fun SettingGroup(
     }
 }
 
-/** 跳转项：图标 + 标题 + 右侧值 + 箭头。 */
+/**
+ * 跳转项：图标 + 标题 + 右侧值 + 箭头。
+ *
+ * [onClick] 为 null 或 [showChevron] 为 false 时呈「只读行」（无点击反馈、无箭头），
+ * 用于高考日期这类仅展示的项。
+ */
 @Composable
 fun SettingNavigateItem(
     icon: Painter,
     iconBgColor: Color,
     title: String,
     value: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    showChevron: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     val interaction = rememberPressSource()
+    val clickable = onClick != null
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .pressScale(interactionSource = interaction)
-            .clickable(
-                interactionSource = interaction,
-                indication = ripple(),
-                onClick = onClick,
+            .then(if (clickable) Modifier.pressScale(interactionSource = interaction) else Modifier)
+            .then(
+                if (clickable) {
+                    Modifier.clickable(
+                        interactionSource = interaction,
+                        indication = ripple(),
+                        onClick = onClick,
+                    )
+                } else {
+                    Modifier
+                },
             )
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -109,13 +123,19 @@ fun SettingNavigateItem(
             fontSize = 14.sp,
             color = ScoreTraceColors.TextSecondaryLight,
         )
-        Spacer(modifier = Modifier.width(6.dp))
-        Icon(
-            painter = painterResource(R.drawable.ic_chevron_right),
-            contentDescription = null,
-            tint = ScoreTraceColors.TextTertiaryLight,
-            modifier = Modifier.size(18.dp),
-        )
+        if (trailing != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            trailing()
+        }
+        if (showChevron) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = ScoreTraceColors.TextTertiaryLight,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

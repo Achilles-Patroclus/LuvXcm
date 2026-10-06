@@ -27,12 +27,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
+import java.io.File
 
 /**
  * 「我的」页顶部用户信息卡：蓝色渐变背景 + 头像 + 备考人信息 + 连续打卡 + 三统计数据。
@@ -40,6 +43,8 @@ import com.fenji.scoretrace.ui.theme.ScoreTraceColors
  */
 @Composable
 fun UserProfileCard(
+    nickname: String,
+    avatarPath: String?,
     targetSchool: String,
     examYear: String,
     streakDays: Int,
@@ -107,17 +112,28 @@ fun UserProfileCard(
                     .background(Color.White),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = ScoreTraceColors.BrandPrimary,
-                    modifier = Modifier.size(36.dp),
-                )
+                if (avatarPath != null) {
+                    AsyncImage(
+                        model = File(avatarPath),
+                        contentDescription = "头像",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = ScoreTraceColors.BrandPrimary,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
-                    text = "备考人",
+                    text = nickname,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,

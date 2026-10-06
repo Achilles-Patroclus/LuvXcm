@@ -65,6 +65,8 @@ import com.fenji.scoretrace.ui.music.MusicPlayerViewModel
 import com.fenji.scoretrace.ui.screen.ai.AiHistoryScreen
 import com.fenji.scoretrace.ui.screen.ai.AiScreen
 import com.fenji.scoretrace.ui.screen.home.HomeScreen
+import com.fenji.scoretrace.ui.screen.mine.AboutScreen
+import com.fenji.scoretrace.ui.screen.mine.FeedbackScreen
 import com.fenji.scoretrace.ui.screen.mine.MineScreen
 import com.fenji.scoretrace.ui.screen.notification.NotificationScreen
 import com.fenji.scoretrace.ui.screen.school.TargetSchoolScreen
@@ -107,6 +109,8 @@ fun AppNavHost(
         currentRoute == Screen.SubjectConfig.route ||
         currentRoute == Screen.StudyTimer.route ||
         currentRoute == Screen.AiHistory.route ||
+        currentRoute == Screen.About.route ||
+        currentRoute == Screen.Feedback.route ||
         (currentRoute == Screen.AI.route && imeVisible)
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -279,6 +283,9 @@ fun AppNavHost(
                 MineScreen(
                     onOpenTargetSchool = { navController.navigate(Screen.TargetSchool.route) },
                     onOpenSubjectConfig = { navController.navigate(Screen.SubjectConfig.route) },
+                    onOpenAbout = { navController.navigate(Screen.About.route) },
+                    onOpenFeedback = { navController.navigate(Screen.Feedback.route) },
+                    onNavigateHome = { navController.navigateToTab(Screen.Home) },
                 )
             }
             composable(Screen.TargetSchool.route) {
@@ -342,6 +349,12 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
                 )
+            }
+            composable(Screen.About.route) {
+                AboutScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Feedback.route) {
+                FeedbackScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Settings.route) { SettingsScreen() }
         }

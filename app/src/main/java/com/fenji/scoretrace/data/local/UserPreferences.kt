@@ -47,14 +47,19 @@ class UserPreferences @Inject constructor(
         }
     }
 
-    /** 是否启用深色主题 */
-    val darkTheme: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[KEY_DARK_THEME] ?: false
+    /**
+     * 主题模式：[THEME_LIGHT] 浅色 / [THEME_DARK] 深色 / [THEME_SYSTEM] 跟随系统。
+     *
+     * 兼容旧版布尔开关：未写过 theme_mode 时，若旧键 dark_theme 为 true 则视为深色，否则跟随系统。
+     */
+    val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_THEME_MODE]
+            ?: if (preferences[KEY_DARK_THEME] == true) THEME_DARK else THEME_SYSTEM
     }
 
-    suspend fun setDarkTheme(enabled: Boolean) {
+    suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { preferences ->
-            preferences[KEY_DARK_THEME] = enabled
+            preferences[KEY_THEME_MODE] = mode
         }
     }
 
@@ -108,6 +113,42 @@ class UserPreferences @Inject constructor(
     suspend fun hasExplicitProvince(): Boolean =
         context.dataStore.data.first()[KEY_PROVINCE] != null
 
+    /** 用户昵称（顶部用户卡显示），默认「备考人」 */
+    val nickname: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_NICKNAME] ?: DEFAULT_NICKNAME
+    }
+
+    suspend fun setNickname(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_NICKNAME] = value
+        }
+    }
+
+    /** 本地头像文件路径；为 null 时使用默认头像（App 私有目录内，不依赖外部 URI 授权）。 */
+    val avatarPath: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AVATAR_PATH]
+    }
+
+    suspend fun setAvatarPath(value: String?) {
+        context.dataStore.edit { preferences ->
+            if (value == null) preferences.remove(KEY_AVATAR_PATH) else preferences[KEY_AVATAR_PATH] = value
+        }
+    }
+
+    /**
+     * 预留：本机用户标识。空串表示尚未接入账号系统的本地用户；
+     * 未来接入云端同步时，登录后写入服务端下发的 userId 用于归属与增量同步。
+     */
+    val userId: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[KEY_USER_ID] ?: ""
+    }
+
+    suspend fun setUserId(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_USER_ID] = value
+        }
+    }
+
     /** 今日 AI 重点文案（缓存） */
     val aiFocus: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_AI_FOCUS]
@@ -136,19 +177,42 @@ class UserPreferences @Inject constructor(
         context.dataStore.edit { preferences -> preferences.clear() }
     }
 
+    /**
+     * 清空全部偏好，但保留定位结果（省份 + 已定位标记）。
+     * 「清除全部数据」后不应丢失定位缓存，免得用户重新触发一轮定位。
+     */
+    suspend fun clearAllKeepLocation() {
+        context.dataStore.edit { preferences ->
+            val province = preferences[KEY_PROVINCE]
+            val located = preferences[KEY_PROVINCE_LOCATED]
+            preferences.clear()
+            if (province != null) preferences[KEY_PROVINCE] = province
+            if (located != null) preferences[KEY_PROVINCE_LOCATED] = located
+        }
+    }
+
     private companion object {
         val KEY_GAOKAO_TIMESTAMP = longPreferencesKey("gaokao_timestamp")
         val KEY_AUTO_PLAY_MUSIC = booleanPreferencesKey("auto_play_music")
         val KEY_DARK_THEME = booleanPreferencesKey("dark_theme")
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_SELECTED_SUBJECTS = stringPreferencesKey("selected_subjects")
         val KEY_PROVINCE = stringPreferencesKey("province")
         val KEY_PROVINCE_LOCATED = booleanPreferencesKey("province_located")
         val KEY_AI_FOCUS = stringPreferencesKey("ai_focus")
         val KEY_AI_FOCUS_DATE = stringPreferencesKey("ai_focus_date")
         val KEY_AI_FOCUS_SIGNAL = stringPreferencesKey("ai_focus_signal")
+        val KEY_NICKNAME = stringPreferencesKey("nickname")
+        val KEY_AVATAR_PATH = stringPreferencesKey("avatar_path")
+        val KEY_USER_ID = stringPreferencesKey("user_id")
 
         const val SUBJECT_SEPARATOR = ","
         const val DEFAULT_SELECTED_SUBJECTS = "物理,化学,生物"
+        const val DEFAULT_NICKNAME = "备考人"
+
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
+        const val THEME_SYSTEM = "system"
 
         /** 默认省份：项目面向云南考生，存量用户无该字段时回落到此值。 */
         const val DEFAULT_PROVINCE = "云南"

@@ -15,6 +15,9 @@ interface ScoreRecordRepository {
 
     fun observeRecent(limit: Int = Constants.HOME_RECENT_SCORE_LIMIT): Flow<List<ScoreRecord>>
 
+    /** 全部成绩记录（导出用） */
+    fun observeAll(): Flow<List<ScoreRecord>>
+
     suspend fun addRecord(
         subjectId: Long,
         score: Double,
@@ -46,6 +49,8 @@ class DefaultScoreRecordRepository @Inject constructor(
 
     override fun observeRecent(limit: Int): Flow<List<ScoreRecord>> =
         scoreRecordDao.observeRecent(limit)
+
+    override fun observeAll(): Flow<List<ScoreRecord>> = scoreRecordDao.observeAll()
 
     override suspend fun addRecord(
         subjectId: Long,
