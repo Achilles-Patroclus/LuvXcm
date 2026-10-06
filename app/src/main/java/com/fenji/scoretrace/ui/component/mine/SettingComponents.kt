@@ -55,7 +55,7 @@ fun SettingGroup(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface),
     ) {
         content()
@@ -97,7 +97,7 @@ fun SettingNavigateItem(
                     Modifier
                 },
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SettingIcon(icon = icon, bgColor = iconBgColor)
@@ -105,14 +105,14 @@ fun SettingNavigateItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = ScoreTraceColors.TextTertiaryLight,
                     modifier = Modifier.padding(top = 2.dp),
                 )
@@ -153,7 +153,7 @@ fun SettingSwitchItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SettingIcon(icon = icon, bgColor = iconBgColor)
@@ -161,14 +161,14 @@ fun SettingSwitchItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -201,7 +201,7 @@ fun SettingCopyItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SettingIcon(icon = icon, bgColor = iconBgColor)
@@ -209,14 +209,14 @@ fun SettingCopyItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.TextPrimaryLight,
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -264,7 +264,7 @@ fun SettingDangerItem(
                 indication = ripple(),
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SettingIcon(icon = icon, bgColor = iconBgColor)
@@ -272,14 +272,14 @@ fun SettingDangerItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = ScoreTraceColors.ErrorRed,
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = ScoreTraceColors.TextSecondaryLight,
             )
         }
@@ -297,7 +297,7 @@ fun SettingDangerItem(
 private fun SettingIcon(icon: Painter, bgColor: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(bgColor.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center,
@@ -306,7 +306,7 @@ private fun SettingIcon(icon: Painter, bgColor: Color, modifier: Modifier = Modi
             painter = icon,
             contentDescription = null,
             tint = bgColor,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -318,7 +318,7 @@ fun SettingDivider() {
         modifier = Modifier
             .fillMaxWidth()
             .height(0.5.dp)
-            .padding(start = 62.dp)
+            .padding(start = 68.dp)
             .background(ScoreTraceColors.CardBorderLight),
     )
 }
