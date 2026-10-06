@@ -103,10 +103,9 @@ fun MineScreen(
                 avatarPath = state.avatarPath,
                 targetSchool = state.targetSchool,
                 examYear = state.examYear,
-                streakDays = state.streakDays,
                 studyDays = state.studyDays,
-                scoreCount = state.scoreRecordCount,
-                taskCount = state.taskCompletedCount,
+                examCount = state.examCount,
+                checkInDays = state.continuousCheckIn,
                 onEditProfile = { showEditProfile = true },
             )
 

@@ -28,17 +28,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.fenji.scoretrace.R
 import com.fenji.scoretrace.ui.theme.ScoreTraceColors
 import java.io.File
 
 /**
- * 「我的」页顶部用户信息卡：蓝色渐变背景 + 头像 + 备考人信息 + 连续打卡 + 三统计数据。
+ * 「我的」页顶部用户信息卡：蓝色渐变背景 + 头像 + 备考人信息 + 三统计数据。
  * 底部圆角 24dp，右上角为编辑入口。
  */
 @Composable
@@ -47,10 +45,9 @@ fun UserProfileCard(
     avatarPath: String?,
     targetSchool: String,
     examYear: String,
-    streakDays: Int,
     studyDays: Int,
-    scoreCount: Int,
-    taskCount: Int,
+    examCount: Int,
+    checkInDays: Int,
     onEditProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -144,28 +141,6 @@ fun UserProfileCard(
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.85f),
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.20f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_fire),
-                        contentDescription = null,
-                        tint = Color(0xFFFFB300),
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "连续打卡 $streakDays 天",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White,
-                    )
-                }
             }
         }
 
@@ -184,13 +159,13 @@ fun UserProfileCard(
             )
             StatItem(
                 label = "成绩记录",
-                value = scoreCount.toString(),
+                value = examCount.toString(),
                 valueColor = ScoreTraceColors.SuccessGreen,
                 modifier = Modifier.weight(1f),
             )
             StatItem(
-                label = "任务完成",
-                value = taskCount.toString(),
+                label = "连续打卡",
+                value = checkInDays.toString(),
                 valueColor = ScoreTraceColors.WarningOrange,
                 modifier = Modifier.weight(1f),
             )

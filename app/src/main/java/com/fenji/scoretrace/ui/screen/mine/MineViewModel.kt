@@ -30,6 +30,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
@@ -45,14 +49,12 @@ data class MineUiState(
     val gaokaoDateText: String = "",
     /** 目标院校名；未设置时为空 */
     val targetSchool: String = "",
-    /** 连续打卡天数（占位，后续由打卡记录计算） */
-    val streakDays: Int = 36,
-    /** 学习天数（占位，后续由使用记录计算） */
-    val studyDays: Int = 247,
-    /** 成绩记录条数 */
-    val scoreRecordCount: Int = 0,
-    /** 已完成任务数 */
-    val taskCompletedCount: Int = 0,
+    /** 备考天数：从「高考日 − 1 年」到今天，与首页口径一致 */
+    val studyDays: Int = 0,
+    /** 成绩记录：不同考试（examName）的场次数 */
+    val examCount: Int = 0,
+    /** 连续打卡天数：按有专注记录的连续自然日计算 */
+    val continuousCheckIn: Int = 0,
     /** 主题模式：light / dark / system */
     val themeMode: String = "system",
     val autoPlayMusic: Boolean = true,
@@ -92,17 +94,17 @@ class MineViewModel @Inject constructor(
         userPreferences.gaokaoTimestamp,
         targetSchoolRepository.observeLatest(),
         combine(
-            scoreRecordRepository.observeRecent(RECENT_SCORE_LIMIT),
-            studyTaskRepository.observeTasks(null),
+            scoreRecordRepository.observeAll(),
+            studySessionRepository.observeSessions(),
             userPreferences.selectedSubjects,
             userPreferences.province,
             combine(userPreferences.nickname, userPreferences.avatarPath) { nickname, avatarPath ->
                 nickname to avatarPath
             },
-        ) { scores, tasks, subjects, province, profile ->
+        ) { records, sessions, subjects, province, profile ->
             MineStats(
-                scoreCount = scores.size,
-                taskCompletedCount = tasks.count { it.isCompleted },
+                examCount = records.map { it.examName }.filter { it.isNotBlank() }.distinct().size,
+                continuousCheckIn = consecutiveCheckInDays(sessions.map { it.startedAt }),
                 selectedSubjects = subjects,
                 province = province,
                 nickname = profile.first,
@@ -115,8 +117,9 @@ class MineViewModel @Inject constructor(
             examYear = examYearOf(gaokaoTimestamp),
             gaokaoDateText = DateUtils.formatDate(Date(gaokaoTimestamp)),
             targetSchool = targetSchool?.schoolName.orEmpty(),
-            scoreRecordCount = stats.scoreCount,
-            taskCompletedCount = stats.taskCompletedCount,
+            studyDays = studyDaysOf(gaokaoTimestamp),
+            examCount = stats.examCount,
+            continuousCheckIn = stats.continuousCheckIn,
             selectedSubjects = stats.selectedSubjects,
             province = stats.province,
             nickname = stats.nickname,
@@ -228,16 +231,35 @@ class MineViewModel @Inject constructor(
             .get(Calendar.YEAR)
             .toString()
 
+    /** 备考天数：从「高考日 − 1 年」到今天，与首页备考天数口径一致。 */
+    private fun studyDaysOf(gaokaoTimestamp: Long): Int =
+        ChronoUnit.DAYS.between(
+            Instant.ofEpochMilli(gaokaoTimestamp).atZone(ZoneId.systemDefault()).toLocalDate().minusYears(1),
+            LocalDate.now(),
+        ).toInt().coerceAtLeast(0)
+
+    /** 连续打卡：以有专注记录的连续自然日计数，允许「今天还没学」而从上一天起算。 */
+    private fun consecutiveCheckInDays(startedAtMillis: List<Long>): Int {
+        if (startedAtMillis.isEmpty()) return 0
+        val days = startedAtMillis
+            .map { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }
+            .toHashSet()
+        val today = LocalDate.now()
+        var cursor = if (today in days) today else today.minusDays(1)
+        var count = 0
+        while (cursor in days) {
+            count++
+            cursor = cursor.minusDays(1)
+        }
+        return count
+    }
+
     private data class MineStats(
-        val scoreCount: Int,
-        val taskCompletedCount: Int,
+        val examCount: Int,
+        val continuousCheckIn: Int,
         val selectedSubjects: List<String>,
         val province: String,
         val nickname: String,
         val avatarPath: String?,
     )
-
-    private companion object {
-        const val RECENT_SCORE_LIMIT = 100
-    }
 }
