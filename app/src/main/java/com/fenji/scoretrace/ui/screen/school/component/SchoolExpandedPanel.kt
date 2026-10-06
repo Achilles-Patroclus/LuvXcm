@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -169,7 +170,7 @@ fun SchoolExpandedPanel(
                     text = buildTip(school, targetScore, selectedMajor, currentScore),
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
-                    color = Color(0xFF4B5563),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -282,14 +283,14 @@ private fun SelectableChip(text: String, selected: Boolean, onClick: () -> Unit)
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) ScoreTraceColors.BrandPrimary else Color(0xFFF3F4F6))
+            .background(if (selected) ScoreTraceColors.BrandPrimary else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
     ) {
         Text(
             text = text,
             fontSize = 13.sp,
-            color = if (selected) Color.White else Color(0xFF4B5563),
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
         )
     }
@@ -302,10 +303,10 @@ private fun MajorChip(major: Major, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) ScoreTraceColors.BrandPrimary else Color(0xFFF3F4F6))
+            .background(if (selected) ScoreTraceColors.BrandPrimary else MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 width = 1.dp,
-                color = if (selected) ScoreTraceColors.BrandPrimary else Color(0xFFE5E7EB),
+                color = if (selected) ScoreTraceColors.BrandPrimary else MaterialTheme.colorScheme.outlineVariant,
                 shape = shape,
             )
             .clickable(onClick = onClick)
@@ -330,7 +331,7 @@ private fun MajorChip(major: Major, selected: Boolean, onClick: () -> Unit) {
             Text(
                 text = major.name,
                 fontSize = 13.sp,
-                color = if (selected) Color.White else Color(0xFF4B5563),
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             )
         }

@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
@@ -117,7 +118,7 @@ fun MusicFloatingPanel(
             },
         shape = RoundedCornerShape(24.dp),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shadowElevation = 24.dp,
     ) {
         Column(
@@ -125,8 +126,8 @@ fun MusicFloatingPanel(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFE8F4FD).copy(alpha = 0.97f),
-                            Color(0xFFC8E4F5).copy(alpha = 0.95f),
+                            MaterialTheme.colorScheme.surfaceContainer,
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
                         ),
                     ),
                 )
@@ -144,7 +145,7 @@ fun MusicFloatingPanel(
                     modifier = Modifier
                         .size(width = 32.dp, height = 3.dp)
                         .clip(CircleShape)
-                        .background(Color.Gray.copy(alpha = 0.3f)),
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)),
                 )
             }
 
@@ -177,7 +178,7 @@ fun MusicFloatingPanel(
                         text = track.title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1A1A2E),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -185,7 +186,7 @@ fun MusicFloatingPanel(
                     Text(
                         text = track.artist,
                         fontSize = 12.sp,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -206,7 +207,7 @@ fun MusicFloatingPanel(
                             if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border,
                         ),
                         contentDescription = "收藏",
-                        tint = if (isFavorite) Color(0xFFEF4444) else Color(0xFF9CA3AF),
+                        tint = if (isFavorite) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -283,11 +284,11 @@ fun MusicFloatingPanel(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(text = formatTime(position), fontSize = 10.sp, color = Color(0xFF6B7280))
+                    Text(text = formatTime(position), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         text = "-${formatTime((duration - position).coerceAtLeast(0L))}",
                         fontSize = 10.sp,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -304,7 +305,7 @@ fun MusicFloatingPanel(
                     Icon(
                         painter = painterResource(R.drawable.ic_shuffle),
                         contentDescription = "随机播放",
-                        tint = if (shuffleEnabled) Color(0xFF3B82F6) else Color(0xFF6B7280),
+                        tint = if (shuffleEnabled) Color(0xFF3B82F6) else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -313,7 +314,7 @@ fun MusicFloatingPanel(
                     Icon(
                         painter = painterResource(R.drawable.ic_skip_previous),
                         contentDescription = "上一首",
-                        tint = Color(0xFF1F2937),
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(26.dp),
                     )
                 }
@@ -342,7 +343,7 @@ fun MusicFloatingPanel(
                     Icon(
                         painter = painterResource(R.drawable.ic_skip_next),
                         contentDescription = "下一首",
-                        tint = Color(0xFF1F2937),
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(26.dp),
                     )
                 }
@@ -356,7 +357,7 @@ fun MusicFloatingPanel(
                     Icon(
                         painter = painterResource(repeatIcon),
                         contentDescription = "循环模式",
-                        tint = if (repeatMode == RepeatMode.OFF) Color(0xFF6B7280) else Color(0xFF3B82F6),
+                        tint = if (repeatMode == RepeatMode.OFF) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF3B82F6),
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -371,7 +372,7 @@ private fun MusicTag(@DrawableRes icon: Int?, text: String) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.White.copy(alpha = 0.45f))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -379,12 +380,12 @@ private fun MusicTag(@DrawableRes icon: Int?, text: String) {
             Icon(
                 painter = painterResource(icon),
                 contentDescription = null,
-                tint = Color(0xFF4B5563),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(11.dp),
             )
             Spacer(modifier = Modifier.width(3.dp))
         }
-        Text(text = text, fontSize = 10.sp, color = Color(0xFF4B5563), maxLines = 1)
+        Text(text = text, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }
 

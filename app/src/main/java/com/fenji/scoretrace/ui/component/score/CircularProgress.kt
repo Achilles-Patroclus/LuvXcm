@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -27,6 +28,7 @@ fun CircularProgress(
     modifier: Modifier = Modifier,
     size: Int = 96,
 ) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
     Box(
         modifier = modifier.size(size.dp),
         contentAlignment = Alignment.Center,
@@ -37,7 +39,7 @@ fun CircularProgress(
             val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
 
             drawArc(
-                color = Color(0xFFE2E8F0),
+                color = trackColor,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,

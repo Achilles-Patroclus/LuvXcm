@@ -1,6 +1,7 @@
 package com.fenji.scoretrace.ui.component.score
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -38,7 +39,7 @@ fun LineChart(
     val labelStyle = TextStyle(fontSize = 11.sp, color = ScoreTraceColors.TextTertiaryLight)
     val valueStyle = TextStyle(fontSize = 12.sp, color = ScoreTraceColors.TextSecondaryLight)
     val targetStyle = TextStyle(fontSize = 11.sp, color = ScoreTraceColors.ErrorRed)
-    val gridColor = Color(0xFFE2E8F0)
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
     val range = (yMax - yMin).coerceAtLeast(1)
 
     Canvas(modifier = modifier.fillMaxWidth().height(180.dp)) {

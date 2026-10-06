@@ -78,11 +78,6 @@ private val SEPARATOR_CELL_REGEX = Regex("^:?-+:?$")
 
 private val BoldStyle = SpanStyle(fontWeight = FontWeight.Bold)
 private val ItalicStyle = SpanStyle(fontStyle = FontStyle.Italic)
-private val InlineCodeStyle = SpanStyle(
-    fontFamily = FontFamily.Monospace,
-    background = Color(0xFFF0F1F4),
-    color = Color(0xFFB4285C),
-)
 
 // ── 解析 ─────────────────────────────────────────────────────
 
@@ -224,7 +219,7 @@ private fun isTableSeparator(line: String): Boolean {
  * 单遍扫描构造行内 [AnnotatedString]，用深度计数天然支持嵌套（如 `**粗 *斜* 粗**`）。
  * 未闭合的标记不会抛异常：对应的深度保持开启直到文本结束。
  */
-private fun buildInline(text: String): AnnotatedString = buildAnnotatedString {
+private fun buildInline(text: String, codeStyle: SpanStyle): AnnotatedString = buildAnnotatedString {
     var i = 0
     var bold = 0
     var italic = 0
@@ -250,7 +245,7 @@ private fun buildInline(text: String): AnnotatedString = buildAnnotatedString {
             val end = text.indexOf('`', i + 1)
             if (end > i) {
                 flush()
-                withStyle(InlineCodeStyle) { append(text.substring(i + 1, end)) }
+                withStyle(codeStyle) { append(text.substring(i + 1, end)) }
                 i = end + 1
                 continue
             }
@@ -278,11 +273,22 @@ private fun buildInline(text: String): AnnotatedString = buildAnnotatedString {
 
 // ── 渲染 ─────────────────────────────────────────────────────
 
+/** 行内代码样式跟随主题（背景 surfaceVariant / 文字 primary）。 */
+@Composable
+private fun rememberInlineCodeStyle(): SpanStyle {
+    val background = MaterialTheme.colorScheme.surfaceVariant
+    val foreground = MaterialTheme.colorScheme.primary
+    return remember(background, foreground) {
+        SpanStyle(fontFamily = FontFamily.Monospace, background = background, color = foreground)
+    }
+}
+
 @Composable
 private fun MarkdownBlock(block: MdBlock) {
+    val codeStyle = rememberInlineCodeStyle()
     when (block) {
         is MdBlock.Heading -> Text(
-            text = remember(block.text) { buildInline(block.text) },
+            text = remember(block.text) { buildInline(block.text, codeStyle) },
             fontSize = when (block.level) {
                 1 -> 19.sp
                 2 -> 17.sp
@@ -298,7 +304,7 @@ private fun MarkdownBlock(block: MdBlock) {
         )
 
         is MdBlock.Paragraph -> Text(
-            text = remember(block.text) { buildInline(block.text) },
+            text = remember(block.text) { buildInline(block.text, codeStyle) },
             fontSize = 14.sp,
             lineHeight = 21.sp,
             color = ScoreTraceColors.TextPrimaryLight,
@@ -318,6 +324,7 @@ private fun MarkdownBlock(block: MdBlock) {
 
 @Composable
 private fun ListRow(marker: String, text: String) {
+    val codeStyle = rememberInlineCodeStyle()
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Text(
             text = marker,
@@ -328,7 +335,7 @@ private fun ListRow(marker: String, text: String) {
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = remember(text) { buildInline(text) },
+            text = remember(text) { buildInline(text, codeStyle) },
             fontSize = 14.sp,
             lineHeight = 21.sp,
             color = ScoreTraceColors.TextPrimaryLight,
@@ -339,6 +346,7 @@ private fun ListRow(marker: String, text: String) {
 
 @Composable
 private fun QuoteBlock(text: String) {
+    val codeStyle = rememberInlineCodeStyle()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -353,7 +361,7 @@ private fun QuoteBlock(text: String) {
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
-            text = remember(text) { buildInline(text) },
+            text = remember(text) { buildInline(text, codeStyle) },
             fontSize = 13.sp,
             lineHeight = 20.sp,
             color = ScoreTraceColors.TextSecondaryLight,
@@ -410,6 +418,7 @@ private fun TableRow(
     border: Color,
     showTop: Boolean,
 ) {
+    val codeStyle = rememberInlineCodeStyle()
     Column {
         if (showTop) HorizontalDivider(thickness = 1.dp, color = border)
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -422,7 +431,7 @@ private fun TableRow(
                             .background(border),
                     )
                 }
-                val inline = remember(cells.getOrNull(column)) { buildInline(cells.getOrNull(column).orEmpty()) }
+                val inline = remember(cells.getOrNull(column)) { buildInline(cells.getOrNull(column).orEmpty(), codeStyle) }
                 Text(
                     text = inline,
                     fontSize = 12.sp,

@@ -111,7 +111,7 @@ fun SchoolRow(
                 modifier = Modifier
                     .size(20.dp)
                     .clip(CircleShape)
-                    .border(1.5.dp, Color(0xFFCBD5E1), CircleShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape)
                     .clickable(onClick = onClick),
             )
         }

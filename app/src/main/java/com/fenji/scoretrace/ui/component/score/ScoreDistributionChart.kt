@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -30,6 +31,10 @@ fun ScoreDistributionChart(
     val labelStyle = TextStyle(fontSize = 11.sp, color = ScoreTraceColors.TextSecondaryLight)
     val countStyle = TextStyle(fontSize = 12.sp, color = ScoreTraceColors.TextTertiaryLight)
     val mineLabelStyle = TextStyle(fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+    val trackGradient = listOf(
+        MaterialTheme.colorScheme.surfaceVariant,
+        MaterialTheme.colorScheme.outlineVariant,
+    )
 
     val maxCount = segments.maxOfOrNull { it.count } ?: 1
 
@@ -53,7 +58,7 @@ fun ScoreDistributionChart(
             val barColor = if (segment.isMine) {
                 Brush.verticalGradient(listOf(ScoreTraceColors.BrandPrimary, Color(0xFF06B6D4)))
             } else {
-                Brush.verticalGradient(listOf(Color(0xFFEEF2F7), Color(0xFFE2E8F0)))
+                Brush.verticalGradient(trackGradient)
             }
 
             drawRoundRect(

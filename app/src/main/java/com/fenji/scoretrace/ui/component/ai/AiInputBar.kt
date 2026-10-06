@@ -144,7 +144,7 @@ fun AiInputBar(
                         brush = if (isSendEnabled) {
                             Brush.linearGradient(ScoreTraceColors.AiGradient)
                         } else {
-                            SolidColor(Color(0xFFE0E0E0))
+                            SolidColor(MaterialTheme.colorScheme.surfaceVariant)
                         },
                         shape = CircleShape,
                     )

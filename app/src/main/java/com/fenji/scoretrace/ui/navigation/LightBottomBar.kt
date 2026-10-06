@@ -56,7 +56,7 @@ fun LightBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(0.5.dp)
-                .background(Color(0xFFE2E8F0)),
+                .background(MaterialTheme.colorScheme.outlineVariant),
         )
 
         Row(

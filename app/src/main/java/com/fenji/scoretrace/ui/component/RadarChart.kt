@@ -1,11 +1,11 @@
 package com.fenji.scoretrace.ui.component
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
@@ -31,7 +31,7 @@ fun RadarChart(
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = ScoreTraceColors.TextSecondaryLight)
     val emptyStyle = TextStyle(fontSize = 11.sp, color = ScoreTraceColors.TextTertiaryLight)
-    val gridColor = Color(0xFFE2E8F0)
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
     // 六科全无数据时视为空态：不画数据多边形与数据点，改为在中心提示
     val isEmpty = values.all { it <= 0.01f }
 
