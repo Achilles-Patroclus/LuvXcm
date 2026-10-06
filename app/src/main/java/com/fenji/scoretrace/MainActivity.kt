@@ -8,15 +8,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.fenji.scoretrace.data.local.UserPreferences
+import com.fenji.scoretrace.ui.component.AppToastHost
 import com.fenji.scoretrace.ui.navigation.AppNavHost
 import com.fenji.scoretrace.ui.theme.ScoreTraceTheme
 import com.fenji.scoretrace.util.AppLogger
@@ -59,7 +66,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    AppNavHost()
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // 底栏可见性由 AppNavHost 回传，供 Toast 定位避让底栏
+                        var bottomBarVisible by remember { mutableStateOf(true) }
+                        AppNavHost(onBottomBarVisibleChange = { bottomBarVisible = it })
+                        AppToastHost(
+                            bottomPadding = if (bottomBarVisible) 72.dp else 16.dp,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
                 }
             }
         }

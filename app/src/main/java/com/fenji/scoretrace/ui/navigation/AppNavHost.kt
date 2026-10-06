@@ -9,31 +9,16 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarData
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,15 +27,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -84,13 +65,14 @@ import com.fenji.scoretrace.util.AppToast
  * 因此切底部 Tab 不会把它销毁，音乐也就不会被中断。
  *
  * 过渡动画：底部 Tab 之间用淡入淡出（[tabEnter]/[tabExit]），二级页面用水平滑动（NavHost 默认）。
- * 根 Scaffold 同时承载全局 Snackbar（[AppToast] 的宿主）。
+ * 轻提示由 [com.fenji.scoretrace.util.AppToast] 全局队列管理，宿主 `AppToastHost` 挂在 MainActivity。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppNavHost(
     navController: NavHostController = rememberNavController(),
     musicViewModel: MusicPlayerViewModel = hiltViewModel(),
+    onBottomBarVisibleChange: (Boolean) -> Unit = {},
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -113,8 +95,7 @@ fun AppNavHost(
         currentRoute == Screen.Feedback.route ||
         (currentRoute == Screen.AI.route && imeVisible)
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(snackbarHostState) { AppToast.attach(snackbarHostState) }
+    LaunchedEffect(hideBottomBar) { onBottomBarVisibleChange(!hideBottomBar) }
 
     val tabs = listOf(
         BottomBarTab(Screen.Home, R.string.tab_home, rememberVectorPainter(Icons.Filled.Home)),
@@ -143,9 +124,6 @@ fun AppNavHost(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data -> AppSnackbar(data) }
-        },
         bottomBar = {
             if (!hideBottomBar) {
                 LightBottomBar(
@@ -378,37 +356,4 @@ private fun tabEnter(): EnterTransition = fadeIn(animationSpec = tween(200))
 /** Tab 退出：淡出 200ms。 */
 private fun tabExit(): ExitTransition = fadeOut(animationSpec = tween(200))
 
-/** 全局 Snackbar：深灰底、白字、16dp 圆角，按前置类型标记显示对应图标与配色（✓ / ✕ / ⚠ / ℹ）。 */
-@Composable
-private fun AppSnackbar(data: SnackbarData) {
-    val message = data.visuals.message
-    val (icon, tint) = when {
-        message.startsWith(AppToast.SUCCESS_PREFIX) -> Icons.Rounded.CheckCircle to Color(0xFF10B981)
-        message.startsWith(AppToast.ERROR_PREFIX) -> Icons.Rounded.Close to Color(0xFFEF4444)
-        message.startsWith(AppToast.WARNING_PREFIX) -> Icons.Rounded.Warning to Color(0xFFF59E0B)
-        else -> Icons.Rounded.Info to Color(0xFF3B82F6)
-    }
-    val text = message
-        .removePrefix("${AppToast.SUCCESS_PREFIX} ")
-        .removePrefix("${AppToast.ERROR_PREFIX} ")
-        .removePrefix("${AppToast.WARNING_PREFIX} ")
-        .removePrefix("${AppToast.INFO_PREFIX} ")
 
-    Snackbar(
-        modifier = Modifier.padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        containerColor = Color(0xFF1F2937),
-        contentColor = Color.White,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = text, fontSize = 14.sp, fontWeight = FontWeight.Normal)
-        }
-    }
-}
